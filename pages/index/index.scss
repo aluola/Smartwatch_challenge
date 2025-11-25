@@ -1,0 +1,357 @@
+.watch-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 20rpx;
+  box-sizing: border-box;
+}
+
+// 顶部区域
+.top-section {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20rpx;
+    
+    .bluetooth-status {
+      display: flex;
+      align-items: center;
+      gap: 15rpx;
+      
+      &.connected {
+        .status-icon {
+          color: #2ecc71;
+        }
+      }
+      
+      .status-icon {
+        font-size: 36rpx;
+      }
+      
+      .status-text {
+        font-size: 28rpx;
+        font-weight: 500;
+      }
+      
+      .device-name {
+        font-size: 24rpx;
+        color: rgba(255, 255, 255, 0.7);
+      }
+    }
+    
+    .battery-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10rpx;
+      
+      .battery-icon {
+        font-size: 32rpx;
+      }
+      
+      .battery-level {
+        font-size: 24rpx;
+        color: rgba(255, 255, 255, 0.8);
+      }
+    }
+  }
+  
+  .action-buttons {
+    display: flex;
+    gap: 20rpx;
+    
+    .btn {
+      flex: 1;
+      height: 70rpx;
+      border: none;
+      border-radius: 35rpx;
+      font-size: 28rpx;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      
+      &.btn-primary {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        color: white;
+        
+        &:disabled {
+          background: rgba(52, 152, 219, 0.5);
+        }
+      }
+      
+      &.btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        
+        &:disabled {
+          opacity: 0.5;
+        }
+      }
+    }
+  }
+}
+
+// 中间区域
+.middle-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  
+  .data-display {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20rpx;
+    padding: 30rpx;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    flex: 1;
+    
+    .data-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20rpx;
+      
+      .section-title {
+        font-size: 32rpx;
+        font-weight: 600;
+        color: #3498db;
+      }
+      
+      .data-count {
+        font-size: 24rpx;
+        color: rgba(255, 255, 255, 0.6);
+      }
+    }
+    
+    .data-list {
+      height: 400rpx;
+      
+      .data-item {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 15rpx;
+        padding: 20rpx;
+        margin-bottom: 15rpx;
+        border-left: 4rpx solid transparent;
+        
+        &.received {
+          border-left-color: #2ecc71;
+        }
+        
+        &.sent {
+          border-left-color: #3498db;
+        }
+        
+        &.system {
+          border-left-color: #f39c12;
+        }
+        
+        .data-meta {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 10rpx;
+          
+          .data-time {
+            font-size: 22rpx;
+            color: rgba(255, 255, 255, 0.6);
+          }
+          
+          .data-type {
+            font-size: 22rpx;
+            font-weight: 500;
+          }
+        }
+        
+        .data-content {
+          font-size: 26rpx;
+          word-break: break-all;
+          line-height: 1.4;
+        }
+      }
+    }
+  }
+  
+  .sensor-data {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20rpx;
+    padding: 30rpx;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    
+    .sensor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20rpx;
+      
+      .sensor-item {
+        text-align: center;
+        padding: 20rpx;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 15rpx;
+        
+        .sensor-label {
+          display: block;
+          font-size: 24rpx;
+          color: rgba(255, 255, 255, 0.7);
+          margin-bottom: 10rpx;
+        }
+        
+        .sensor-value {
+          display: block;
+          font-size: 32rpx;
+          font-weight: 600;
+          color: #3498db;
+        }
+      }
+    }
+
+    .music-panel {
+      margin-top: 24rpx;
+      padding-top: 20rpx;
+      border-top: 1px dashed rgba(255, 255, 255, 0.15);
+
+      .music-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16rpx;
+        flex-wrap: wrap;
+        gap: 16rpx;
+      }
+
+      .music-status {
+        flex: 1;
+        min-width: 45%;
+      }
+
+      .music-label {
+        display: block;
+        font-size: 22rpx;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 6rpx;
+      }
+
+      .music-value {
+        font-size: 26rpx;
+        font-weight: 500;
+        color: #ecf0f1;
+      }
+
+      .thresholds-row {
+        margin-top: 10rpx;
+        flex-direction: column;
+        align-items: flex-start;
+
+        .threshold-item {
+          display: flex;
+          justify-content: space-between;
+          width: 100%;
+        }
+      }
+
+      .manual-row {
+        margin-top: 10rpx;
+
+        .manual-picker {
+          padding: 8rpx 16rpx;
+          border-radius: 20rpx;
+          background: rgba(255, 255, 255, 0.06);
+        }
+      }
+    }
+  }
+}
+
+// 底部区域
+.bottom-section {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20rpx;
+  padding: 30rpx;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  
+  .input-container {
+    display: flex;
+    gap: 20rpx;
+    margin-bottom: 30rpx;
+    
+    .input-field {
+      flex: 1;
+      height: 80rpx;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 40rpx;
+      padding: 0 30rpx;
+      color: white;
+      font-size: 28rpx;
+      
+      .input-placeholder {
+        color: rgba(255, 255, 255, 0.5);
+      }
+    }
+    
+    .send-btn {
+      width: 160rpx;
+      height: 80rpx;
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      border: none;
+      border-radius: 40rpx;
+      color: white;
+      font-size: 28rpx;
+      font-weight: 500;
+      
+      &:disabled {
+        background: rgba(52, 152, 219, 0.5);
+      }
+    }
+  }
+  
+  .quick-commands {
+    .commands-title {
+      display: block;
+      font-size: 28rpx;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 20rpx;
+    }
+    
+    .command-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15rpx;
+      
+      .cmd-btn {
+        height: 60rpx;
+        background: rgba(52, 152, 219, 0.2);
+        border: 1px solid rgba(52, 152, 219, 0.4);
+        border-radius: 30rpx;
+        color: #3498db;
+        font-size: 24rpx;
+        
+        &:active {
+          background: rgba(52, 152, 219, 0.4);
+        }
+      }
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 750px) {
+  .watch-container {
+    padding: 10rpx;
+  }
+  
+  .top-section,
+  .middle-section .data-display,
+  .middle-section .sensor-data,
+  .bottom-section {
+    padding: 20rpx;
+  }
+}
