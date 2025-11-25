@@ -1,0 +1,28 @@
+# Node / package
+node_modules/
+package-lock.json
+yarn.lock
+
+# build / output
+dist/
+unpackage/
+release/
+build/
+
+# system
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+
+# env
+.env
+*.local
+
+# IDE
+.vscode/
+.idea/
+
+# misc
+*.tmp
