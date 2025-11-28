@@ -84,7 +84,8 @@ if (uni.restoreGlobal) {
         heartRate: null,
         spo2: null,
         steps: null,
-        temperature: null
+        temperature: null,
+        humidity: null
       });
       const currentHeartRate = vue.ref(null);
       const currentMusicCategory = vue.ref("none");
@@ -102,44 +103,151 @@ if (uni.restoreGlobal) {
         fast: { min: 120, max: 144 },
         veryfast: { min: 144, max: 999 }
       });
-      const musicLibrary = {
+      const musicDatabase = {
+        slow: [
+          { file: "slow_song_1.mp3", bpm: 65 }
+        ],
+        mid: [
+          { file: "mid_song_1.mp3", bpm: 80 },
+          { file: "mid_song_2.mp3", bpm: 81 },
+          { file: "mid_song_3.mp3", bpm: 82 },
+          { file: "mid_song_4.mp3", bpm: 83 },
+          { file: "mid_song_5.mp3", bpm: 84 },
+          { file: "mid_song_6.mp3", bpm: 85 },
+          { file: "mid_song_7.mp3", bpm: 86 },
+          { file: "mid_song_8.mp3", bpm: 87 },
+          { file: "mid_song_9.mp3", bpm: 88 },
+          { file: "mid_song_10.mp3", bpm: 89 },
+          { file: "mid_song_11.mp3", bpm: 90 },
+          { file: "mid_song_12.mp3", bpm: 91 },
+          { file: "mid_song_13.mp3", bpm: 92 },
+          { file: "mid_song_14.mp3", bpm: 93 },
+          { file: "mid_song_15.mp3", bpm: 94 },
+          { file: "mid_song_16.mp3", bpm: 95 },
+          { file: "mid_song_17.mp3", bpm: 96 },
+          { file: "mid_song_18.mp3", bpm: 97 },
+          { file: "mid_song_19.mp3", bpm: 98 },
+          { file: "mid_song_20.mp3", bpm: 99 },
+          { file: "mid_song_21.mp3", bpm: 99 },
+          { file: "mid_song_22.mp3", bpm: 90 },
+          { file: "mid_song_23.mp3", bpm: 90 },
+          { file: "mid_song_24.mp3", bpm: 90 },
+          { file: "mid_song_25.mp3", bpm: 90 },
+          { file: "mid_song_26.mp3", bpm: 90 },
+          { file: "mid_song_27.mp3", bpm: 90 },
+          { file: "mid_song_28.mp3", bpm: 90 },
+          { file: "mid_song_29.mp3", bpm: 90 },
+          { file: "mid_song_30.mp3", bpm: 90 }
+        ],
+        midfast: [
+          { file: "midfast_song_1.mp3", bpm: 100 },
+          { file: "midfast_song_2.mp3", bpm: 101 },
+          { file: "midfast_song_3.mp3", bpm: 102 },
+          { file: "midfast_song_4.mp3", bpm: 103 },
+          { file: "midfast_song_5.mp3", bpm: 104 },
+          { file: "midfast_song_6.mp3", bpm: 105 },
+          { file: "midfast_song_7.mp3", bpm: 106 },
+          { file: "midfast_song_8.mp3", bpm: 107 },
+          { file: "midfast_song_9.mp3", bpm: 108 },
+          { file: "midfast_song_10.mp3", bpm: 109 },
+          { file: "midfast_song_11.mp3", bpm: 110 },
+          { file: "midfast_song_12.mp3", bpm: 111 },
+          { file: "midfast_song_13.mp3", bpm: 112 },
+          { file: "midfast_song_14.mp3", bpm: 113 },
+          { file: "midfast_song_15.mp3", bpm: 114 },
+          { file: "midfast_song_16.mp3", bpm: 115 },
+          { file: "midfast_song_17.mp3", bpm: 116 },
+          { file: "midfast_song_18.mp3", bpm: 117 },
+          { file: "midfast_song_19.mp3", bpm: 118 },
+          { file: "midfast_song_20.mp3", bpm: 119 },
+          { file: "midfast_song_21.mp3", bpm: 119 },
+          { file: "midfast_song_22.mp3", bpm: 119 },
+          { file: "midfast_song_23.mp3", bpm: 119 },
+          { file: "midfast_song_24.mp3", bpm: 119 },
+          { file: "midfast_song_25.mp3", bpm: 119 },
+          { file: "midfast_song_26.mp3", bpm: 119 }
+        ],
+        fast: [
+          { file: "fast_song_1.mp3", bpm: 120 },
+          { file: "fast_song_2.mp3", bpm: 121 },
+          { file: "fast_song_3.mp3", bpm: 122 },
+          { file: "fast_song_4.mp3", bpm: 123 },
+          { file: "fast_song_5.mp3", bpm: 124 },
+          { file: "fast_song_6.mp3", bpm: 125 },
+          { file: "fast_song_7.mp3", bpm: 126 },
+          { file: "fast_song_8.mp3", bpm: 127 },
+          { file: "fast_song_9.mp3", bpm: 128 },
+          { file: "fast_song_10.mp3", bpm: 129 },
+          { file: "fast_song_11.mp3", bpm: 130 },
+          { file: "fast_song_12.mp3", bpm: 131 },
+          { file: "fast_song_13.mp3", bpm: 132 },
+          { file: "fast_song_14.mp3", bpm: 133 },
+          { file: "fast_song_15.mp3", bpm: 134 },
+          { file: "fast_song_16.mp3", bpm: 135 }
+        ],
+        veryfast: [
+          { file: "veryfast_song_1.mp3", bpm: 140 },
+          { file: "veryfast_song_2.mp3", bpm: 141 },
+          { file: "veryfast_song_3.mp3", bpm: 142 },
+          { file: "veryfast_song_4.mp3", bpm: 143 },
+          { file: "veryfast_song_5.mp3", bpm: 144 },
+          { file: "veryfast_song_6.mp3", bpm: 145 },
+          { file: "veryfast_song_7.mp3", bpm: 146 },
+          { file: "veryfast_song_8.mp3", bpm: 147 },
+          { file: "veryfast_song_9.mp3", bpm: 148 },
+          { file: "veryfast_song_10.mp3", bpm: 149 },
+          { file: "veryfast_song_11.mp3", bpm: 150 },
+          { file: "veryfast_song_12.mp3", bpm: 151 },
+          { file: "veryfast_song_13.mp3", bpm: 152 },
+          { file: "veryfast_song_14.mp3", bpm: 153 },
+          { file: "veryfast_song_15.mp3", bpm: 154 },
+          { file: "veryfast_song_16.mp3", bpm: 155 },
+          { file: "veryfast_song_17.mp3", bpm: 156 },
+          { file: "veryfast_song_18.mp3", bpm: 157 },
+          { file: "veryfast_song_19.mp3", bpm: 158 },
+          { file: "veryfast_song_20.mp3", bpm: 159 },
+          { file: "veryfast_song_21.mp3", bpm: 160 },
+          { file: "veryfast_song_22.mp3", bpm: 161 },
+          { file: "veryfast_song_23.mp3", bpm: 162 },
+          { file: "veryfast_song_24.mp3", bpm: 163 },
+          { file: "veryfast_song_25.mp3", bpm: 164 },
+          { file: "veryfast_song_26.mp3", bpm: 165 },
+          { file: "veryfast_song_27.mp3", bpm: 166 },
+          { file: "veryfast_song_28.mp3", bpm: 167 }
+        ]
+      };
+      const musicLibrary = vue.reactive({
         slow: {
-          folder: "/Music/000-079_BPM_slow/",
-          bpmList: "/Music/000-079_BPM_slow/bpm_list.txt",
+          folder: "/static/Music/000-079_BPM_slow/",
           tracks: [],
-          // { file, bpm }
           loaded: false,
           currentIndex: -1
         },
         mid: {
-          folder: "/Music/080-099_BPM_mid/",
-          bpmList: "/Music/080-099_BPM_mid/bpm_list.txt",
+          folder: "/static/Music/080-099_BPM_mid/",
           tracks: [],
           loaded: false,
           currentIndex: -1
         },
         midfast: {
-          folder: "/Music/100-119_BPM_midfast/",
-          bpmList: "/Music/100-119_BPM_midfast/bpm_list.txt",
+          folder: "/static/Music/100-119_BPM_midfast/",
           tracks: [],
           loaded: false,
           currentIndex: -1
         },
         fast: {
-          folder: "/Music/120-139_BPM_fast/",
-          bpmList: "/Music/120-139_BPM_fast/bpm_list.txt",
+          folder: "/static/Music/120-139_BPM_fast/",
           tracks: [],
           loaded: false,
           currentIndex: -1
         },
         veryfast: {
-          folder: "/Music/140+_BPM_veryfast/",
-          bpmList: "/Music/140+_BPM_veryfast/bpm_list.txt",
+          folder: "/static/Music/140+_BPM_veryfast/",
           tracks: [],
           loaded: false,
           currentIndex: -1
         }
-      };
+      });
       let audioCtx = null;
       const musicCategoryOptions = [
         { value: "slow", label: "慢速 slow" },
@@ -189,6 +297,7 @@ if (uni.restoreGlobal) {
       let writeCharId = null;
       let notifyServiceId = null;
       let notifyCharId = null;
+      let receiveBuffer = "";
       vue.onMounted(() => {
         initBluetooth();
         startBatteryMonitoring();
@@ -204,10 +313,10 @@ if (uni.restoreGlobal) {
               fail: reject
             });
           });
-          formatAppLog("log", "at pages/index/index.vue:315", "蓝牙适配器初始化成功");
+          formatAppLog("log", "at pages/index/index.vue:434", "蓝牙适配器初始化成功");
           addLog("系统", "蓝牙适配器已就绪", "system");
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:318", "蓝牙初始化失败", error);
+          formatAppLog("error", "at pages/index/index.vue:437", "蓝牙初始化失败", error);
           uni.showToast({
             title: "蓝牙初始化失败",
             icon: "none"
@@ -221,6 +330,18 @@ if (uni.restoreGlobal) {
         addLog("系统", "开始扫描设备...");
         discoveredDevices.value = [];
         try {
+          try {
+            await new Promise((resolve, reject) => {
+              uni.openBluetoothAdapter({
+                success: resolve,
+                fail: (err) => {
+                  formatAppLog("error", "at pages/index/index.vue:460", "重新打开蓝牙适配器失败", err);
+                  resolve();
+                }
+              });
+            });
+          } catch (e) {
+          }
           await new Promise((resolve, reject) => {
             uni.startBluetoothDevicesDiscovery({
               allowDuplicatesKey: false,
@@ -262,7 +383,7 @@ if (uni.restoreGlobal) {
             }
           }, 6e3);
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:376", "扫描设备失败", error);
+          formatAppLog("error", "at pages/index/index.vue:508", "扫描设备失败", error);
           scanning.value = false;
           uni.showToast({
             title: "扫描失败",
@@ -341,8 +462,9 @@ if (uni.restoreGlobal) {
             title: "连接成功",
             icon: "success"
           });
+          switchMusicCategory("mid");
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:467", "连接设备失败", error);
+          formatAppLog("error", "at pages/index/index.vue:601", "连接设备失败", error);
           uni.showToast({
             title: "连接失败",
             icon: "none"
@@ -359,7 +481,7 @@ if (uni.restoreGlobal) {
               });
             });
           } catch (error) {
-            formatAppLog("error", "at pages/index/index.vue:486", "断开连接失败", error);
+            formatAppLog("error", "at pages/index/index.vue:620", "断开连接失败", error);
           }
         }
         isConnected.value = false;
@@ -370,6 +492,10 @@ if (uni.restoreGlobal) {
         notifyServiceId = null;
         notifyCharId = null;
         addLog("系统", "设备已断开");
+        uni.showToast({
+          title: "已断开",
+          icon: "none"
+        });
       };
       const sendData = async () => {
         if (!inputMessage.value.trim() || !isConnected.value)
@@ -400,7 +526,7 @@ if (uni.restoreGlobal) {
           addLog(text, "sent");
           inputMessage.value = "";
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:532", "发送数据失败", error);
+          formatAppLog("error", "at pages/index/index.vue:670", "发送数据失败", error);
           uni.showToast({
             title: "发送失败",
             icon: "none"
@@ -412,16 +538,56 @@ if (uni.restoreGlobal) {
         sendData();
       };
       const handleReceivedData = (data) => {
-        addLog(data, "received");
-        if (data.includes("HR:")) {
-          const hrStr = data.split(":")[1];
+        if (!data)
+          return;
+        receiveBuffer += String(data);
+        let newlineIndex = receiveBuffer.indexOf("\n");
+        while (newlineIndex !== -1) {
+          let line = receiveBuffer.substring(0, newlineIndex).trim();
+          receiveBuffer = receiveBuffer.substring(newlineIndex + 1);
+          if (line) {
+            addLog(line, "received");
+            parseDeviceLine(line);
+          }
+          newlineIndex = receiveBuffer.indexOf("\n");
+        }
+      };
+      const parseDeviceLine = (line) => {
+        if (line.startsWith("MUSIC:PLAY")) {
+          if (!isPlaying.value) {
+            formatAppLog("log", "at pages/index/index.vue:722", "收到远程指令: 播放");
+            togglePlayPause();
+          }
+          return;
+        }
+        if (line.startsWith("MUSIC:PAUSE")) {
+          if (isPlaying.value) {
+            formatAppLog("log", "at pages/index/index.vue:732", "收到远程指令: 暂停");
+            togglePlayPause();
+          }
+          return;
+        }
+        if (line.startsWith("MUSIC:NEXT")) {
+          formatAppLog("log", "at pages/index/index.vue:740", "收到远程指令: 下一首");
+          playNextTrack();
+          return;
+        }
+        if (line.startsWith("MUSIC:PREV")) {
+          formatAppLog("log", "at pages/index/index.vue:747", "收到远程指令: 上一首");
+          playPrevTrack();
+          return;
+        }
+        if (line.startsWith("HR:")) {
+          const hrStr = line.split(":")[1];
           const hr = parseInt(hrStr, 10);
           if (!isNaN(hr)) {
             sensorData.heartRate = hr;
             onHeartRateUpdate(hr);
           }
-        } else if (/Heart\s*Rate/i.test(data)) {
-          const match = data.match(/Heart\s*Rate\s*:(\d+)/i);
+          return;
+        }
+        if (/^Heart\s*Rate/i.test(line)) {
+          const match = line.match(/(\d+)/);
           if (match) {
             const hr = parseInt(match[1], 10);
             if (!isNaN(hr)) {
@@ -429,12 +595,36 @@ if (uni.restoreGlobal) {
               onHeartRateUpdate(hr);
             }
           }
-        } else if (data.includes("SPO2:")) {
-          sensorData.spo2 = data.split(":")[1];
-        } else if (data.includes("STEPS:")) {
-          sensorData.steps = data.split(":")[1];
-        } else if (data.includes("TEMP:")) {
-          sensorData.temperature = data.split(":")[1];
+          return;
+        }
+        if (/humidity/i.test(line)) {
+          const match = line.match(/(\d+(\.\d+)?)/);
+          if (match) {
+            sensorData.humidity = parseFloat(match[1]);
+          }
+          return;
+        }
+        if (/SPO2/i.test(line)) {
+          const match = line.match(/(\d+)/);
+          if (match) {
+            sensorData.spo2 = match[1];
+            sensorData.spo2 = sensorData.spo2.replace("%", "");
+          }
+          return;
+        }
+        if (/STEPS/i.test(line) || /Step\s+today/i.test(line)) {
+          const match = line.match(/(\d+)/);
+          if (match) {
+            sensorData.steps = match[1];
+          }
+          return;
+        }
+        if (/TEMP/i.test(line) || /temperature/i.test(line)) {
+          const match = line.match(/(\d+(\.\d+)?)/);
+          if (match) {
+            sensorData.temperature = match[1];
+          }
+          return;
         }
       };
       const addLog = (content, type = "received") => {
@@ -542,47 +732,25 @@ if (uni.restoreGlobal) {
             isPlaying.value = false;
           });
           audioCtx.onError((err) => {
-            formatAppLog("error", "at pages/index/index.vue:706", "音乐播放错误", err);
+            formatAppLog("error", "at pages/index/index.vue:944", "音乐播放错误", err);
             addLog("系统", "音乐播放出错");
             isPlaying.value = false;
           });
         }
       };
       const loadCategoryTracks = (category) => {
-        const cfg = musicLibrary[category];
-        if (!cfg || !cfg.bpmList) {
-          return Promise.resolve();
-        }
-        return new Promise((resolve, reject) => {
-          uni.request({
-            url: cfg.bpmList,
-            method: "GET",
-            success: (res) => {
-              const text = typeof res.data === "string" ? res.data : "";
-              const lines = text.split(/\r?\n/).filter((l) => l.trim());
-              const tracks = [];
-              for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line)
-                  continue;
-                const parts = line.split(/\s+/);
-                const bpmStr = parts[parts.length - 1];
-                const bpm = parseFloat(bpmStr);
-                const file = parts.slice(0, parts.length - 1).join(" ");
-                if (file && !isNaN(bpm)) {
-                  tracks.push({ file, bpm });
-                }
-              }
-              cfg.tracks = tracks;
-              cfg.loaded = true;
-              resolve();
-            },
-            fail: (err) => {
-              formatAppLog("error", "at pages/index/index.vue:745", "加载 bpm_list 失败", category, err);
-              addLog("系统", `加载 ${category} 的 bpm_list 失败`);
-              reject(err);
-            }
-          });
+        return new Promise((resolve) => {
+          const cfg = musicLibrary[category];
+          const tracks = musicDatabase[category] || [];
+          if (tracks.length > 0) {
+            cfg.tracks = tracks;
+            cfg.loaded = true;
+            formatAppLog("log", "at pages/index/index.vue:962", `分类 ${category} 加载了 ${tracks.length} 首歌曲`);
+          } else {
+            formatAppLog("warn", "at pages/index/index.vue:964", `分类 ${category} 没有定义歌曲`);
+            addLog("系统", `分类 ${category} 暂无歌曲配置`);
+          }
+          resolve();
         });
       };
       const switchMusicCategory = async (category) => {
@@ -613,8 +781,6 @@ if (uni.restoreGlobal) {
           return;
         }
         const total = cfg.tracks.length;
-        if (total === 0)
-          return;
         let idx = index;
         if (idx < 0)
           idx = total - 1;
@@ -623,11 +789,14 @@ if (uni.restoreGlobal) {
         cfg.currentIndex = idx;
         const track = cfg.tracks[idx];
         ensureAudioContext();
-        audioCtx.src = cfg.folder + track.file;
+        const fullPath = cfg.folder + track.file;
+        formatAppLog("log", "at pages/index/index.vue:1016", "准备播放:", fullPath);
+        audioCtx.src = fullPath;
         audioCtx.play();
+        isPlaying.value = true;
         currentMusicCategory.value = category;
         currentTrackName.value = track.file;
-        addLog("系统", `切换至 ${category} 类型音乐：${track.file}（${track.bpm} BPM）`);
+        addLog("系统", `切换至 ${category}：${track.file} (${track.bpm} BPM)`);
       };
       const toggleManualOverride = (e) => {
         manualOverride.value = !e.detail.value ? true : false;
@@ -658,6 +827,7 @@ if (uni.restoreGlobal) {
               return;
             }
           }
+          await switchMusicCategory("mid");
           return;
         }
         if (!canControlTrack.value) {
@@ -700,7 +870,7 @@ if (uni.restoreGlobal) {
         return pendingStartTime;
       }, set pendingStartTime(v) {
         pendingStartTime = v;
-      }, hrThresholds, musicLibrary, get audioCtx() {
+      }, hrThresholds, musicDatabase, musicLibrary, get audioCtx() {
         return audioCtx;
       }, set audioCtx(v) {
         audioCtx = v;
@@ -724,7 +894,11 @@ if (uni.restoreGlobal) {
         return notifyCharId;
       }, set notifyCharId(v) {
         notifyCharId = v;
-      }, initBluetooth, scanDevices, connectToDevice, disconnect, sendData, sendQuickCommand, handleReceivedData, addLog, startBatteryMonitoring, str2ab, ab2str, delay, onHeartRateUpdate, getCategoryByHeartRate, ensureAudioContext, loadCategoryTracks, switchMusicCategory, playTrackByIndex, toggleManualOverride, onManualCategoryChange, togglePlayPause, playNextTrack, playPrevTrack, ref: vue.ref, reactive: vue.reactive, onMounted: vue.onMounted, onUnmounted: vue.onUnmounted, computed: vue.computed };
+      }, get receiveBuffer() {
+        return receiveBuffer;
+      }, set receiveBuffer(v) {
+        receiveBuffer = v;
+      }, initBluetooth, scanDevices, connectToDevice, disconnect, sendData, sendQuickCommand, handleReceivedData, parseDeviceLine, addLog, startBatteryMonitoring, str2ab, ab2str, delay, onHeartRateUpdate, getCategoryByHeartRate, ensureAudioContext, loadCategoryTracks, switchMusicCategory, playTrackByIndex, toggleManualOverride, onManualCategoryChange, togglePlayPause, playNextTrack, playPrevTrack, ref: vue.ref, reactive: vue.reactive, onMounted: vue.onMounted, onUnmounted: vue.onUnmounted, computed: vue.computed };
       Object.defineProperty(__returned__, "__isScriptSetup", { enumerable: false, value: true });
       return __returned__;
     }
@@ -861,7 +1035,7 @@ if (uni.restoreGlobal) {
               vue.createElementVNode(
                 "text",
                 { class: "sensor-value" },
-                vue.toDisplayString($setup.sensorData.heartRate || "--") + " BPM",
+                vue.toDisplayString($setup.sensorData.heartRate ?? "--") + " BPM",
                 1
                 /* TEXT */
               )
@@ -871,7 +1045,7 @@ if (uni.restoreGlobal) {
               vue.createElementVNode(
                 "text",
                 { class: "sensor-value" },
-                vue.toDisplayString($setup.sensorData.spo2 || "--") + " %",
+                vue.toDisplayString($setup.sensorData.spo2 ?? "--") + " %",
                 1
                 /* TEXT */
               )
@@ -881,7 +1055,7 @@ if (uni.restoreGlobal) {
               vue.createElementVNode(
                 "text",
                 { class: "sensor-value" },
-                vue.toDisplayString($setup.sensorData.steps || "--"),
+                vue.toDisplayString($setup.sensorData.steps ?? "--"),
                 1
                 /* TEXT */
               )
@@ -891,7 +1065,17 @@ if (uni.restoreGlobal) {
               vue.createElementVNode(
                 "text",
                 { class: "sensor-value" },
-                vue.toDisplayString($setup.sensorData.temperature || "--") + " °C",
+                vue.toDisplayString($setup.sensorData.temperature ?? "--") + " °C",
+                1
+                /* TEXT */
+              )
+            ]),
+            vue.createElementVNode("view", { class: "sensor-item" }, [
+              vue.createElementVNode("text", { class: "sensor-label" }, "湿度"),
+              vue.createElementVNode(
+                "text",
+                { class: "sensor-value" },
+                vue.toDisplayString($setup.sensorData.humidity ?? "--") + " %",
                 1
                 /* TEXT */
               )

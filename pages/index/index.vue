@@ -52,19 +52,23 @@
         <view class="sensor-grid">
           <view class="sensor-item">
             <text class="sensor-label">心率</text>
-            <text class="sensor-value">{{ sensorData.heartRate || '--' }} BPM</text>
+            <text class="sensor-value">{{ sensorData.heartRate ?? '--' }} BPM</text>
           </view>
           <view class="sensor-item">
             <text class="sensor-label">血氧</text>
-            <text class="sensor-value">{{ sensorData.spo2 || '--' }} %</text>
+            <text class="sensor-value">{{ sensorData.spo2 ?? '--' }} %</text>
           </view>
           <view class="sensor-item">
             <text class="sensor-label">步数</text>
-            <text class="sensor-value">{{ sensorData.steps || '--' }}</text>
+            <text class="sensor-value">{{ sensorData.steps ?? '--' }}</text>
           </view>
           <view class="sensor-item">
             <text class="sensor-label">温度</text>
-            <text class="sensor-value">{{ sensorData.temperature || '--' }} °C</text>
+            <text class="sensor-value">{{ sensorData.temperature ?? '--' }} °C</text>
+          </view>
+          <view class="sensor-item">
+            <text class="sensor-label">湿度</text>
+            <text class="sensor-value">{{ sensorData.humidity ?? '--' }} %</text>
           </view>
         </view>
 
@@ -166,7 +170,8 @@ const sensorData = reactive({
   heartRate: null,
   spo2: null,
   steps: null,
-  temperature: null
+  temperature: null,
+  humidity: null
 })
 
 // 心率与音乐映射
@@ -193,45 +198,158 @@ const hrThresholds = reactive({
   veryfast: { min: 144, max: 999 }
 })
 
+// 1. 定义音乐数据库（手动录入或从外部 js 导入，替代 txt 文件读取）
+// 请确保文件名与你 static 文件夹下的实际文件名一致
+const musicDatabase = {
+  slow: [
+    { file: 'slow_song_1.mp3', bpm: 65 }
+  ],
+  mid: [
+    { file: 'mid_song_1.mp3', bpm: 80 },
+    { file: 'mid_song_2.mp3', bpm: 81 },
+	{ file: 'mid_song_3.mp3', bpm: 82 },
+	{ file: 'mid_song_4.mp3', bpm: 83 },
+	{ file: 'mid_song_5.mp3', bpm: 84 },
+	{ file: 'mid_song_6.mp3', bpm: 85 },
+	{ file: 'mid_song_7.mp3', bpm: 86 },
+	{ file: 'mid_song_8.mp3', bpm: 87 },
+	{ file: 'mid_song_9.mp3', bpm: 88 },
+	{ file: 'mid_song_10.mp3', bpm: 89 },
+	{ file: 'mid_song_11.mp3', bpm: 90 },
+	{ file: 'mid_song_12.mp3', bpm: 91 },
+	{ file: 'mid_song_13.mp3', bpm: 92 },
+	{ file: 'mid_song_14.mp3', bpm: 93 },
+	{ file: 'mid_song_15.mp3', bpm: 94 },
+	{ file: 'mid_song_16.mp3', bpm: 95 },
+	{ file: 'mid_song_17.mp3', bpm: 96 },
+	{ file: 'mid_song_18.mp3', bpm: 97 },
+	{ file: 'mid_song_19.mp3', bpm: 98 },
+	{ file: 'mid_song_20.mp3', bpm: 99 },
+	{ file: 'mid_song_21.mp3', bpm: 99 },
+	{ file: 'mid_song_22.mp3', bpm: 90 },
+	{ file: 'mid_song_23.mp3', bpm: 90 },
+	{ file: 'mid_song_24.mp3', bpm: 90 },
+	{ file: 'mid_song_25.mp3', bpm: 90 },
+	{ file: 'mid_song_26.mp3', bpm: 90 },
+	{ file: 'mid_song_27.mp3', bpm: 90 },
+	{ file: 'mid_song_28.mp3', bpm: 90 },
+	{ file: 'mid_song_29.mp3', bpm: 90 },
+	{ file: 'mid_song_30.mp3', bpm: 90 }
+  ],
+  midfast: [
+    { file: 'midfast_song_1.mp3', bpm: 100 },
+    { file: 'midfast_song_2.mp3', bpm: 101 },
+	{ file: 'midfast_song_3.mp3', bpm: 102 },
+	{ file: 'midfast_song_4.mp3', bpm: 103 },
+	{ file: 'midfast_song_5.mp3', bpm: 104 },
+	{ file: 'midfast_song_6.mp3', bpm: 105 },
+	{ file: 'midfast_song_7.mp3', bpm: 106 },
+	{ file: 'midfast_song_8.mp3', bpm: 107 },
+	{ file: 'midfast_song_9.mp3', bpm: 108 },
+	{ file: 'midfast_song_10.mp3', bpm: 109 },
+	{ file: 'midfast_song_11.mp3', bpm: 110 },
+	{ file: 'midfast_song_12.mp3', bpm: 111 },
+	{ file: 'midfast_song_13.mp3', bpm: 112 },
+	{ file: 'midfast_song_14.mp3', bpm: 113 },
+	{ file: 'midfast_song_15.mp3', bpm: 114 },
+	{ file: 'midfast_song_16.mp3', bpm: 115 },
+	{ file: 'midfast_song_17.mp3', bpm: 116 },
+	{ file: 'midfast_song_18.mp3', bpm: 117 },
+	{ file: 'midfast_song_19.mp3', bpm: 118 },
+	{ file: 'midfast_song_20.mp3', bpm: 119 },
+	{ file: 'midfast_song_21.mp3', bpm: 119 },
+	{ file: 'midfast_song_22.mp3', bpm: 119 },
+	{ file: 'midfast_song_23.mp3', bpm: 119 },
+	{ file: 'midfast_song_24.mp3', bpm: 119 },
+	{ file: 'midfast_song_25.mp3', bpm: 119 },
+	{ file: 'midfast_song_26.mp3', bpm: 119 },
+  ],
+  fast: [
+    { file: 'fast_song_1.mp3', bpm: 120 },
+    { file: 'fast_song_2.mp3', bpm: 121 },
+	{ file: 'fast_song_3.mp3', bpm: 122 },
+	{ file: 'fast_song_4.mp3', bpm: 123 },
+	{ file: 'fast_song_5.mp3', bpm: 124 },
+	{ file: 'fast_song_6.mp3', bpm: 125 },
+	{ file: 'fast_song_7.mp3', bpm: 126 },
+	{ file: 'fast_song_8.mp3', bpm: 127 },
+	{ file: 'fast_song_9.mp3', bpm: 128 },
+	{ file: 'fast_song_10.mp3', bpm: 129 },
+	{ file: 'fast_song_11.mp3', bpm: 130 },
+	{ file: 'fast_song_12.mp3', bpm: 131 },
+	{ file: 'fast_song_13.mp3', bpm: 132 },
+	{ file: 'fast_song_14.mp3', bpm: 133 },
+	{ file: 'fast_song_15.mp3', bpm: 134 },
+	{ file: 'fast_song_16.mp3', bpm: 135 }
+  ],
+  veryfast: [
+    { file: 'veryfast_song_1.mp3', bpm: 140 },
+    { file: 'veryfast_song_2.mp3', bpm: 141 },
+	{ file: 'veryfast_song_3.mp3', bpm: 142 },
+	{ file: 'veryfast_song_4.mp3', bpm: 143 },
+	{ file: 'veryfast_song_5.mp3', bpm: 144 },
+	{ file: 'veryfast_song_6.mp3', bpm: 145 },
+	{ file: 'veryfast_song_7.mp3', bpm: 146 },
+	{ file: 'veryfast_song_8.mp3', bpm: 147 },
+	{ file: 'veryfast_song_9.mp3', bpm: 148 },
+	{ file: 'veryfast_song_10.mp3', bpm: 149 },
+	{ file: 'veryfast_song_11.mp3', bpm: 150 },
+	{ file: 'veryfast_song_12.mp3', bpm: 151 },
+	{ file: 'veryfast_song_13.mp3', bpm: 152 },
+	{ file: 'veryfast_song_14.mp3', bpm: 153 },
+	{ file: 'veryfast_song_15.mp3', bpm: 154 },
+	{ file: 'veryfast_song_16.mp3', bpm: 155 },
+	{ file: 'veryfast_song_17.mp3', bpm: 156 },
+	{ file: 'veryfast_song_18.mp3', bpm: 157 },
+	{ file: 'veryfast_song_19.mp3', bpm: 158 },
+	{ file: 'veryfast_song_20.mp3', bpm: 159 },
+	{ file: 'veryfast_song_21.mp3', bpm: 160 },
+	{ file: 'veryfast_song_22.mp3', bpm: 161 },
+	{ file: 'veryfast_song_23.mp3', bpm: 162 },
+	{ file: 'veryfast_song_24.mp3', bpm: 163 },
+	{ file: 'veryfast_song_25.mp3', bpm: 164 },
+	{ file: 'veryfast_song_26.mp3', bpm: 165 },
+	{ file: 'veryfast_song_27.mp3', bpm: 166 },
+	{ file: 'veryfast_song_28.mp3', bpm: 167 }
+  ]
+}
+
+
+
 // 音乐库配置（从各自 bpm_list.txt 动态读取）
-// 注意：Music 文件夹位于项目根目录，运行时通过 /Music/... 访问
-const musicLibrary = {
+// App 真机建议将 Music 文件夹放在 static 目录下，运行时通过 static/Music/... 访问
+const musicLibrary = reactive({
   slow: {
-    folder: '/Music/000-079_BPM_slow/',
-    bpmList: '/Music/000-079_BPM_slow/bpm_list.txt',
-    tracks: [], // { file, bpm }
+    folder: '/static/Music/000-079_BPM_slow/', 
+    tracks: [],
     loaded: false,
     currentIndex: -1
   },
   mid: {
-    folder: '/Music/080-099_BPM_mid/',
-    bpmList: '/Music/080-099_BPM_mid/bpm_list.txt',
+    folder: '/static/Music/080-099_BPM_mid/',
     tracks: [],
     loaded: false,
     currentIndex: -1
   },
   midfast: {
-    folder: '/Music/100-119_BPM_midfast/',
-    bpmList: '/Music/100-119_BPM_midfast/bpm_list.txt',
+    folder: '/static/Music/100-119_BPM_midfast/',
     tracks: [],
     loaded: false,
     currentIndex: -1
   },
   fast: {
-    folder: '/Music/120-139_BPM_fast/',
-    bpmList: '/Music/120-139_BPM_fast/bpm_list.txt',
+    folder: '/static/Music/120-139_BPM_fast/',
     tracks: [],
     loaded: false,
     currentIndex: -1
   },
   veryfast: {
-    folder: '/Music/140+_BPM_veryfast/',
-    bpmList: '/Music/140+_BPM_veryfast/bpm_list.txt',
+    folder: '/static/Music/140+_BPM_veryfast/',
     tracks: [],
     loaded: false,
     currentIndex: -1
   }
-}
+})
 
 let audioCtx = null
 
@@ -292,6 +410,7 @@ let writeServiceId = null
 let writeCharId = null
 let notifyServiceId = null
 let notifyCharId = null
+let receiveBuffer = ''	//接收数据缓冲区
 
 // 生命周期
 onMounted(() => {
@@ -332,6 +451,19 @@ const scanDevices = async () => {
   discoveredDevices.value = []
   
   try {
+    // 确保蓝牙适配器已打开（多次调用 openBluetoothAdapter 是安全的）
+    try {
+      await new Promise((resolve, reject) => {
+        uni.openBluetoothAdapter({
+          success: resolve,
+          fail: (err) => {
+            console.error('重新打开蓝牙适配器失败', err)
+            resolve() // 忽略错误，交由后续扫描报错提示
+          }
+        })
+      })
+    } catch (e) {}
+
     await new Promise((resolve, reject) => {
       uni.startBluetoothDevicesDiscovery({
         allowDuplicatesKey: false,
@@ -462,6 +594,8 @@ const connectToDevice = async (device) => {
       title: '连接成功',
       icon: 'success'
     })
+    // 默认播放一段中速节奏音乐，作为正常心率的背景
+    switchMusicCategory('mid')
     
   } catch (error) {
     console.error('连接设备失败', error)
@@ -495,6 +629,10 @@ const disconnect = async () => {
   notifyServiceId = null
   notifyCharId = null
   addLog('系统', '设备已断开', 'system')
+  uni.showToast({
+    title: '已断开',
+    icon: 'none'
+  })
 }
 
 // 发送数据
@@ -543,22 +681,90 @@ const sendQuickCommand = (cmd) => {
   sendData()
 }
 
-// 处理接收到的数据
+// 处理接收到的数据（已修复分包粘包问题）
 const handleReceivedData = (data) => {
-  addLog(data, 'received')
+  if (!data) return
   
-  // 解析传感器数据
-  if (data.includes('HR:')) {
-    // 兼容旧格式 HR:75
-    const hrStr = data.split(':')[1]
+  // 1. 将新收到的数据拼接到缓冲区
+  receiveBuffer += String(data)
+  
+  // 2. 检查缓冲区是否存在换行符（假设设备以 \n 或 \r\n 结尾）
+  let newlineIndex = receiveBuffer.indexOf('\n')
+  
+  // 3. 循环处理所有完整的行
+  while (newlineIndex !== -1) {
+    // 截取完整的一行
+    let line = receiveBuffer.substring(0, newlineIndex).trim()
+    
+    // 从缓冲区移除已处理的行（包括换行符）
+    receiveBuffer = receiveBuffer.substring(newlineIndex + 1)
+    
+    // 如果行不为空，进行解析
+    if (line) {
+      // 在这里打印日志，这样看到的就是完整的 "heartRate:56" 而不是碎皮
+      addLog(line, 'received') 
+      parseDeviceLine(line)
+    }
+    
+    // 继续查找下一行（防止一次收到多条指令粘连）
+    newlineIndex = receiveBuffer.indexOf('\n')
+  }
+}
+
+// 解析完整的一行数据
+const parseDeviceLine = (line) => {
+  // --- 1. 音乐控制指令区域 ---
+  
+  // 播放指令
+  if (line.startsWith('MUSIC:PLAY')) {
+    // 只有当前是暂停状态才执行播放，防止重复触发
+    if (!isPlaying.value) {
+      console.log('收到远程指令: 播放')
+      togglePlayPause()
+    }
+    return
+  }
+
+  // 暂停指令
+  if (line.startsWith('MUSIC:PAUSE')) {
+    // 只有当前是播放状态才执行暂停
+    if (isPlaying.value) {
+      console.log('收到远程指令: 暂停')
+      togglePlayPause()
+    }
+    return
+  }
+
+  // 下一首指令
+  if (line.startsWith('MUSIC:NEXT')) {
+    console.log('收到远程指令: 下一首')
+    playNextTrack()
+    return
+  }
+
+  // 上一首指令
+  if (line.startsWith('MUSIC:PREV')) {
+    console.log('收到远程指令: 上一首')
+    playPrevTrack()
+    return
+  }
+
+  // --- 2. 传感器数据解析区域 (保持原有逻辑) ---
+
+  // 心率
+  if (line.startsWith('HR:')) {
+    const hrStr = line.split(':')[1]
     const hr = parseInt(hrStr, 10)
     if (!isNaN(hr)) {
       sensorData.heartRate = hr
       onHeartRateUpdate(hr)
     }
-  } else if (/Heart\s*Rate/i.test(data)) {
-    // 新格式：Heart Rate:75%
-    const match = data.match(/Heart\s*Rate\s*:(\d+)/i)
+    return
+  }
+  
+  // 兼容其他格式的心率
+  if (/^Heart\s*Rate/i.test(line)) {
+    const match = line.match(/(\d+)/)
     if (match) {
       const hr = parseInt(match[1], 10)
       if (!isNaN(hr)) {
@@ -566,15 +772,47 @@ const handleReceivedData = (data) => {
         onHeartRateUpdate(hr)
       }
     }
-  } else if (data.includes('SPO2:')) {
-    sensorData.spo2 = data.split(':')[1]
-  } else if (data.includes('STEPS:')) {
-    sensorData.steps = data.split(':')[1]
-  } else if (data.includes('TEMP:')) {
-    sensorData.temperature = data.split(':')[1]
+    return
+  }
+
+  // 湿度
+  if (/humidity/i.test(line)) {
+    const match = line.match(/(\d+(\.\d+)?)/)
+    if (match) {
+      sensorData.humidity = parseFloat(match[1])
+    }
+    return
+  }
+
+  // 血氧
+  if (/SPO2/i.test(line)) {
+    const match = line.match(/(\d+)/)
+    if (match) {
+      sensorData.spo2 = match[1]
+      // 某些设备可能发送 SPO2:99%
+      sensorData.spo2 = sensorData.spo2.replace('%', '') 
+    }
+    return
+  }
+
+  // 步数
+  if (/STEPS/i.test(line) || /Step\s+today/i.test(line)) {
+    const match = line.match(/(\d+)/)
+    if (match) {
+      sensorData.steps = match[1]
+    }
+    return
+  }
+
+  // 温度
+  if (/TEMP/i.test(line) || /temperature/i.test(line)) {
+    const match = line.match(/(\d+(\.\d+)?)/)
+    if (match) {
+      sensorData.temperature = match[1]
+    }
+    return
   }
 }
-
 // 添加日志
 const addLog = (content, type = 'received') => {
   const now = new Date()
@@ -710,43 +948,23 @@ const ensureAudioContext = () => {
   }
 }
 
-// 从 bpm_list.txt 载入指定类型的曲目列表
+// 从 bpm_list.txt 载入指定类型的曲目列表（App 真机走本地文件系统）
+// 修改后的加载函数
 const loadCategoryTracks = (category) => {
-  const cfg = musicLibrary[category]
-  if (!cfg || !cfg.bpmList) {
-    return Promise.resolve()
-  }
-  return new Promise((resolve, reject) => {
-    uni.request({
-      url: cfg.bpmList,
-      method: 'GET',
-      success: (res) => {
-        const text = typeof res.data === 'string' ? res.data : ''
-        const lines = text.split(/\r?\n/).filter(l => l.trim())
-        const tracks = []
-        // 跳过首行表头“文件名\tBPM”
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim()
-          if (!line) continue
-          const parts = line.split(/\s+/)
-          // 文件名中可能有空格，因此从右侧取最后一个作为 bpm，其余拼回文件名
-          const bpmStr = parts[parts.length - 1]
-          const bpm = parseFloat(bpmStr)
-          const file = parts.slice(0, parts.length - 1).join(' ')
-          if (file && !isNaN(bpm)) {
-            tracks.push({ file, bpm })
-          }
-        }
-        cfg.tracks = tracks
-        cfg.loaded = true
-        resolve()
-      },
-      fail: (err) => {
-        console.error('加载 bpm_list 失败', category, err)
-        addLog('系统', `加载 ${category} 的 bpm_list 失败`, 'system')
-        reject(err)
-      }
-    })
+  return new Promise((resolve) => {
+    const cfg = musicLibrary[category]
+    // 从预定义的数据库中获取数据
+    const tracks = musicDatabase[category] || []
+    
+    if (tracks.length > 0) {
+      cfg.tracks = tracks
+      cfg.loaded = true
+      console.log(`分类 ${category} 加载了 ${tracks.length} 首歌曲`)
+    } else {
+      console.warn(`分类 ${category} 没有定义歌曲`)
+      addLog('系统', `分类 ${category} 暂无歌曲配置`, 'system')
+    }
+    resolve()
   })
 }
 
@@ -782,18 +1000,28 @@ const playTrackByIndex = async (category, index) => {
     return
   }
   const total = cfg.tracks.length
-  if (total === 0) return
   let idx = index
   if (idx < 0) idx = total - 1
   if (idx >= total) idx = 0
+  
   cfg.currentIndex = idx
   const track = cfg.tracks[idx]
+  
   ensureAudioContext()
-  audioCtx.src = cfg.folder + track.file
+  
+  // 关键修正：确保路径拼接正确
+  // cfg.folder 已经是 '/static/...'
+  const fullPath = cfg.folder + track.file
+  
+  console.log('准备播放:', fullPath) // 调试用
+  
+  audioCtx.src = fullPath
   audioCtx.play()
+  
+  isPlaying.value = true // 强制设为 true，有时 onPlay 回调有延迟
   currentMusicCategory.value = category
   currentTrackName.value = track.file
-  addLog('系统', `切换至 ${category} 类型音乐：${track.file}（${track.bpm} BPM）`, 'system')
+  addLog('系统', `切换至 ${category}：${track.file} (${track.bpm} BPM)`, 'system')
 }
 
 // UI：自动/手动切换
@@ -823,7 +1051,7 @@ const togglePlayPause = async () => {
   ensureAudioContext()
   const cfg = musicLibrary[currentMusicCategory.value]
   if (!cfg || !cfg.tracks || cfg.tracks.length === 0) {
-    // 若当前类型没有曲目，尝试按当前心率推断类型并切换
+    // 若当前类型没有曲目，优先按心率推断类型，其次使用默认中速类型
     if (currentHeartRate.value != null) {
       const cat = getCategoryByHeartRate(currentHeartRate.value)
       if (cat && cat !== 'none') {
@@ -831,6 +1059,8 @@ const togglePlayPause = async () => {
         return
       }
     }
+    // 没有心率数据时，默认播放中速 mid
+    await switchMusicCategory('mid')
     return
   }
 
