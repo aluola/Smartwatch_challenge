@@ -17,9 +17,9 @@ onHide(() => {
 <style lang="scss">
 /* 全局样式 */
 page {
-  background: linear-gradient(135deg, #1a2a3a 0%, #2c3e50 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
-  color: #ecf0f1;
+  color: #ffffff;
 }
 
 /* 自定义滚动条 */
@@ -33,7 +33,7 @@ page {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(52, 152, 219, 0.6);
+  background: rgba(255, 255, 255, 0.5);
   border-radius: 2px;
 }
 </style>

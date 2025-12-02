@@ -1,6 +1,55 @@
 {
 	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
 		{
+			"path": "pages/welcome/welcome",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "欢迎"
+			}
+		},
+		{
+			"path": "pages/questionnaire/age/age",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "年龄"
+			}
+		},
+		{
+			"path": "pages/questionnaire/gender/gender",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "性别"
+			}
+		},
+		{
+			"path": "pages/questionnaire/body/body",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "身高体重"
+			}
+		},
+		{
+			"path": "pages/questionnaire/exercise-freq/exercise-freq",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "运动频率"
+			}
+		},
+		{
+			"path": "pages/questionnaire/exercise-type/exercise-type",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "运动类型"
+			}
+		},
+		{
+			"path": "pages/questionnaire/music-genre/music-genre",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "音乐流派"
+			}
+		},
+		{
 			"path": "pages/index/index",
 			"style": {
 				"navigationBarTitleText": "智音随行 · 蓝牙助手"

@@ -59,6 +59,62 @@ if (uni.restoreGlobal) {
     1
     /* HookFlags.APP */
   );
+  const STORAGE_KEY = "user_profile_data";
+  const QUESTIONNAIRE_COMPLETED_KEY = "questionnaire_completed";
+  function getUserProfile() {
+    try {
+      const data = uni.getStorageSync(STORAGE_KEY);
+      return data || null;
+    } catch (error) {
+      formatAppLog("error", "at utils/userData.js:16", "获取用户资料失败:", error);
+      return null;
+    }
+  }
+  function saveUserProfile(profile) {
+    try {
+      uni.setStorageSync(STORAGE_KEY, profile);
+      return true;
+    } catch (error) {
+      formatAppLog("error", "at utils/userData.js:29", "保存用户资料失败:", error);
+      return false;
+    }
+  }
+  function updateUserProfile(updates) {
+    try {
+      const current = getUserProfile() || {};
+      const updated = { ...current, ...updates };
+      return saveUserProfile(updated);
+    } catch (error) {
+      formatAppLog("error", "at utils/userData.js:43", "更新用户资料失败:", error);
+      return false;
+    }
+  }
+  function isQuestionnaireCompleted() {
+    try {
+      const completed = uni.getStorageSync(QUESTIONNAIRE_COMPLETED_KEY);
+      return completed === true;
+    } catch (error) {
+      formatAppLog("error", "at utils/userData.js:56", "检查问卷状态失败:", error);
+      return false;
+    }
+  }
+  function markQuestionnaireCompleted() {
+    try {
+      uni.setStorageSync(QUESTIONNAIRE_COMPLETED_KEY, true);
+      return true;
+    } catch (error) {
+      formatAppLog("error", "at utils/userData.js:69", "标记问卷完成失败:", error);
+      return false;
+    }
+  }
+  function calculateBMI(height, weight) {
+    if (!height || !weight || height <= 0 || weight <= 0) {
+      return null;
+    }
+    const heightInMeters = height / 100;
+    const bmi = weight / (heightInMeters * heightInMeters);
+    return parseFloat(bmi.toFixed(2));
+  }
   const _export_sfc = (sfc, props) => {
     const target = sfc.__vccOpts || sfc;
     for (const [key, val] of props) {
@@ -66,6 +122,752 @@ if (uni.restoreGlobal) {
     }
     return target;
   };
+  const _sfc_main$8 = {
+    __name: "welcome",
+    setup(__props, { expose: __expose }) {
+      __expose();
+      const checking = vue.ref(true);
+      vue.onMounted(() => {
+        checkQuestionnaireStatus();
+      });
+      const checkQuestionnaireStatus = () => {
+        setTimeout(() => {
+          const completed = isQuestionnaireCompleted();
+          if (completed) {
+            uni.reLaunch({
+              url: "/pages/index/index"
+            });
+          } else {
+            uni.redirectTo({
+              url: "/pages/questionnaire/age/age"
+            });
+          }
+        }, 1500);
+      };
+      const __returned__ = { checking, checkQuestionnaireStatus, ref: vue.ref, onMounted: vue.onMounted, get isQuestionnaireCompleted() {
+        return isQuestionnaireCompleted;
+      } };
+      Object.defineProperty(__returned__, "__isScriptSetup", { enumerable: false, value: true });
+      return __returned__;
+    }
+  };
+  function _sfc_render$7(_ctx, _cache, $props, $setup, $data, $options) {
+    return vue.openBlock(), vue.createElementBlock("view", { class: "welcome-container" }, [
+      vue.createElementVNode("view", { class: "welcome-content" }, [
+        vue.createElementVNode("view", { class: "logo-section" }, [
+          vue.createElementVNode("text", { class: "logo-icon" }, "🎵"),
+          vue.createElementVNode("text", { class: "app-name" }, "智音随行"),
+          vue.createElementVNode("text", { class: "app-slogan" }, "让音乐随心率而动")
+        ]),
+        $setup.checking ? (vue.openBlock(), vue.createElementBlock("view", {
+          key: 0,
+          class: "loading-section"
+        }, [
+          vue.createElementVNode("view", { class: "loading-spinner" }),
+          vue.createElementVNode("text", { class: "loading-text" }, "正在加载...")
+        ])) : vue.createCommentVNode("v-if", true)
+      ])
+    ]);
+  }
+  const PagesWelcomeWelcome = /* @__PURE__ */ _export_sfc(_sfc_main$8, [["render", _sfc_render$7], ["__scopeId", "data-v-085f0530"], ["__file", "D:/Hbuilder/Project/Smartwatch/智音随行/pages/welcome/welcome.vue"]]);
+  const progress$5 = 16.67;
+  const _sfc_main$7 = {
+    __name: "age",
+    setup(__props, { expose: __expose }) {
+      __expose();
+      const age = vue.ref("");
+      const canNext = vue.computed(() => {
+        const ageNum = parseInt(age.value);
+        return ageNum && ageNum >= 1 && ageNum <= 120;
+      });
+      const onAgeInput = (e) => {
+        age.value = e.detail.value;
+      };
+      const handleNext = () => {
+        if (!canNext.value) {
+          uni.showToast({
+            title: "请输入有效的年龄（1-120岁）",
+            icon: "none"
+          });
+          return;
+        }
+        updateUserProfile({
+          age: parseInt(age.value)
+        });
+        uni.redirectTo({
+          url: "/pages/questionnaire/gender/gender"
+        });
+      };
+      const __returned__ = { age, progress: progress$5, canNext, onAgeInput, handleNext, ref: vue.ref, computed: vue.computed, get updateUserProfile() {
+        return updateUserProfile;
+      } };
+      Object.defineProperty(__returned__, "__isScriptSetup", { enumerable: false, value: true });
+      return __returned__;
+    }
+  };
+  function _sfc_render$6(_ctx, _cache, $props, $setup, $data, $options) {
+    return vue.openBlock(), vue.createElementBlock("view", { class: "questionnaire-container" }, [
+      vue.createElementVNode("view", { class: "progress-bar" }, [
+        vue.createElementVNode(
+          "view",
+          {
+            class: "progress-fill",
+            style: vue.normalizeStyle({ width: $setup.progress + "%" })
+          },
+          null,
+          4
+          /* STYLE */
+        )
+      ]),
+      vue.createElementVNode("view", { class: "content-wrapper" }, [
+        vue.createElementVNode("view", { class: "question-header" }, [
+          vue.createElementVNode("text", { class: "question-number" }, "1 / 6"),
+          vue.createElementVNode("text", { class: "question-title" }, "请输入您的年龄"),
+          vue.createElementVNode("text", { class: "question-hint" }, "我们将根据您的年龄为您推荐合适的运动强度")
+        ]),
+        vue.createElementVNode("view", { class: "input-section" }, [
+          vue.createElementVNode("view", { class: "input-wrapper" }, [
+            vue.withDirectives(vue.createElementVNode(
+              "input",
+              {
+                class: "age-input",
+                type: "number",
+                "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => $setup.age = $event),
+                placeholder: "请输入年龄",
+                "placeholder-class": "input-placeholder",
+                onInput: $setup.onAgeInput,
+                maxlength: "3"
+              },
+              null,
+              544
+              /* NEED_HYDRATION, NEED_PATCH */
+            ), [
+              [vue.vModelText, $setup.age]
+            ]),
+            vue.createElementVNode("text", { class: "input-unit" }, "岁")
+          ]),
+          $setup.age ? (vue.openBlock(), vue.createElementBlock("view", {
+            key: 0,
+            class: "input-hint"
+          }, [
+            vue.createElementVNode(
+              "text",
+              null,
+              "您今年 " + vue.toDisplayString($setup.age) + " 岁",
+              1
+              /* TEXT */
+            )
+          ])) : vue.createCommentVNode("v-if", true)
+        ]),
+        vue.createElementVNode("view", { class: "button-section" }, [
+          vue.createElementVNode("button", {
+            class: vue.normalizeClass(["next-button", { active: $setup.canNext }]),
+            onClick: $setup.handleNext,
+            disabled: !$setup.canNext
+          }, " 下一步 ", 10, ["disabled"])
+        ])
+      ])
+    ]);
+  }
+  const PagesQuestionnaireAgeAge = /* @__PURE__ */ _export_sfc(_sfc_main$7, [["render", _sfc_render$6], ["__scopeId", "data-v-4c8f67f5"], ["__file", "D:/Hbuilder/Project/Smartwatch/智音随行/pages/questionnaire/age/age.vue"]]);
+  const progress$4 = 33.33;
+  const _sfc_main$6 = {
+    __name: "gender",
+    setup(__props, { expose: __expose }) {
+      __expose();
+      const selectedGender = vue.ref("");
+      const selectGender = (gender) => {
+        selectedGender.value = gender;
+      };
+      const handleNext = () => {
+        if (!selectedGender.value) {
+          uni.showToast({
+            title: "请选择性别",
+            icon: "none"
+          });
+          return;
+        }
+        updateUserProfile({
+          gender: selectedGender.value
+        });
+        uni.redirectTo({
+          url: "/pages/questionnaire/body/body"
+        });
+      };
+      const __returned__ = { selectedGender, progress: progress$4, selectGender, handleNext, ref: vue.ref, get updateUserProfile() {
+        return updateUserProfile;
+      } };
+      Object.defineProperty(__returned__, "__isScriptSetup", { enumerable: false, value: true });
+      return __returned__;
+    }
+  };
+  function _sfc_render$5(_ctx, _cache, $props, $setup, $data, $options) {
+    return vue.openBlock(), vue.createElementBlock("view", { class: "questionnaire-container" }, [
+      vue.createElementVNode("view", { class: "progress-bar" }, [
+        vue.createElementVNode(
+          "view",
+          {
+            class: "progress-fill",
+            style: vue.normalizeStyle({ width: $setup.progress + "%" })
+          },
+          null,
+          4
+          /* STYLE */
+        )
+      ]),
+      vue.createElementVNode("view", { class: "content-wrapper" }, [
+        vue.createElementVNode("view", { class: "question-header" }, [
+          vue.createElementVNode("text", { class: "question-number" }, "2 / 6"),
+          vue.createElementVNode("text", { class: "question-title" }, "请选择您的性别"),
+          vue.createElementVNode("text", { class: "question-hint" }, "这将帮助我们更好地为您定制运动建议")
+        ]),
+        vue.createElementVNode("view", { class: "options-section" }, [
+          vue.createElementVNode(
+            "view",
+            {
+              class: vue.normalizeClass(["option-card", { selected: $setup.selectedGender === "male" }]),
+              onClick: _cache[0] || (_cache[0] = ($event) => $setup.selectGender("male"))
+            },
+            [
+              vue.createElementVNode("text", { class: "option-icon" }, "👨"),
+              vue.createElementVNode("text", { class: "option-text" }, "男"),
+              $setup.selectedGender === "male" ? (vue.openBlock(), vue.createElementBlock("view", {
+                key: 0,
+                class: "check-mark"
+              }, "✓")) : vue.createCommentVNode("v-if", true)
+            ],
+            2
+            /* CLASS */
+          ),
+          vue.createElementVNode(
+            "view",
+            {
+              class: vue.normalizeClass(["option-card", { selected: $setup.selectedGender === "female" }]),
+              onClick: _cache[1] || (_cache[1] = ($event) => $setup.selectGender("female"))
+            },
+            [
+              vue.createElementVNode("text", { class: "option-icon" }, "👩"),
+              vue.createElementVNode("text", { class: "option-text" }, "女"),
+              $setup.selectedGender === "female" ? (vue.openBlock(), vue.createElementBlock("view", {
+                key: 0,
+                class: "check-mark"
+              }, "✓")) : vue.createCommentVNode("v-if", true)
+            ],
+            2
+            /* CLASS */
+          )
+        ]),
+        vue.createElementVNode("view", { class: "button-section" }, [
+          vue.createElementVNode("button", {
+            class: vue.normalizeClass(["next-button", { active: $setup.selectedGender }]),
+            onClick: $setup.handleNext,
+            disabled: !$setup.selectedGender
+          }, " 下一步 ", 10, ["disabled"])
+        ])
+      ])
+    ]);
+  }
+  const PagesQuestionnaireGenderGender = /* @__PURE__ */ _export_sfc(_sfc_main$6, [["render", _sfc_render$5], ["__scopeId", "data-v-8fb8ce12"], ["__file", "D:/Hbuilder/Project/Smartwatch/智音随行/pages/questionnaire/gender/gender.vue"]]);
+  const progress$3 = 50;
+  const _sfc_main$5 = {
+    __name: "body",
+    setup(__props, { expose: __expose }) {
+      __expose();
+      const height = vue.ref("");
+      const weight = vue.ref("");
+      const bmi = vue.computed(() => {
+        const h = parseFloat(height.value);
+        const w = parseFloat(weight.value);
+        if (h && w && h > 0 && w > 0) {
+          return calculateBMI(h, w);
+        }
+        return null;
+      });
+      const bmiStatus = vue.computed(() => {
+        if (!bmi.value)
+          return "";
+        if (bmi.value < 18.5) {
+          return "偏瘦";
+        } else if (bmi.value < 24) {
+          return "正常";
+        } else if (bmi.value < 28) {
+          return "偏胖";
+        } else {
+          return "肥胖";
+        }
+      });
+      const canNext = vue.computed(() => {
+        const h = parseFloat(height.value);
+        const w = parseFloat(weight.value);
+        return h && w && h >= 100 && h <= 250 && w >= 20 && w <= 200;
+      });
+      const onHeightInput = (e) => {
+        height.value = e.detail.value;
+      };
+      const onWeightInput = (e) => {
+        weight.value = e.detail.value;
+      };
+      const handleNext = () => {
+        if (!canNext.value) {
+          uni.showToast({
+            title: "请输入有效的身高和体重",
+            icon: "none"
+          });
+          return;
+        }
+        const bmiValue = calculateBMI(parseFloat(height.value), parseFloat(weight.value));
+        updateUserProfile({
+          height: parseFloat(height.value),
+          weight: parseFloat(weight.value),
+          bmi: bmiValue
+        });
+        uni.redirectTo({
+          url: "/pages/questionnaire/exercise-freq/exercise-freq"
+        });
+      };
+      const __returned__ = { height, weight, progress: progress$3, bmi, bmiStatus, canNext, onHeightInput, onWeightInput, handleNext, ref: vue.ref, computed: vue.computed, get updateUserProfile() {
+        return updateUserProfile;
+      }, get calculateBMI() {
+        return calculateBMI;
+      } };
+      Object.defineProperty(__returned__, "__isScriptSetup", { enumerable: false, value: true });
+      return __returned__;
+    }
+  };
+  function _sfc_render$4(_ctx, _cache, $props, $setup, $data, $options) {
+    return vue.openBlock(), vue.createElementBlock("view", { class: "questionnaire-container" }, [
+      vue.createElementVNode("view", { class: "progress-bar" }, [
+        vue.createElementVNode(
+          "view",
+          {
+            class: "progress-fill",
+            style: vue.normalizeStyle({ width: $setup.progress + "%" })
+          },
+          null,
+          4
+          /* STYLE */
+        )
+      ]),
+      vue.createElementVNode("view", { class: "content-wrapper" }, [
+        vue.createElementVNode("view", { class: "question-header" }, [
+          vue.createElementVNode("text", { class: "question-number" }, "3 / 6"),
+          vue.createElementVNode("text", { class: "question-title" }, "请输入您的身高和体重"),
+          vue.createElementVNode("text", { class: "question-hint" }, "用于计算BMI指数，为您推荐更合适的运动强度")
+        ]),
+        vue.createElementVNode("view", { class: "input-section" }, [
+          vue.createElementVNode("view", { class: "input-group" }, [
+            vue.createElementVNode("view", { class: "input-wrapper" }, [
+              vue.createElementVNode("text", { class: "input-label" }, "身高"),
+              vue.createElementVNode("view", { class: "input-box" }, [
+                vue.withDirectives(vue.createElementVNode(
+                  "input",
+                  {
+                    class: "body-input",
+                    type: "digit",
+                    "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => $setup.height = $event),
+                    placeholder: "请输入身高",
+                    "placeholder-class": "input-placeholder",
+                    onInput: $setup.onHeightInput,
+                    maxlength: "3"
+                  },
+                  null,
+                  544
+                  /* NEED_HYDRATION, NEED_PATCH */
+                ), [
+                  [vue.vModelText, $setup.height]
+                ]),
+                vue.createElementVNode("text", { class: "input-unit" }, "cm")
+              ])
+            ]),
+            vue.createElementVNode("view", { class: "input-wrapper" }, [
+              vue.createElementVNode("text", { class: "input-label" }, "体重"),
+              vue.createElementVNode("view", { class: "input-box" }, [
+                vue.withDirectives(vue.createElementVNode(
+                  "input",
+                  {
+                    class: "body-input",
+                    type: "digit",
+                    "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => $setup.weight = $event),
+                    placeholder: "请输入体重",
+                    "placeholder-class": "input-placeholder",
+                    onInput: $setup.onWeightInput,
+                    maxlength: "3"
+                  },
+                  null,
+                  544
+                  /* NEED_HYDRATION, NEED_PATCH */
+                ), [
+                  [vue.vModelText, $setup.weight]
+                ]),
+                vue.createElementVNode("text", { class: "input-unit" }, "kg")
+              ])
+            ])
+          ]),
+          $setup.bmi ? (vue.openBlock(), vue.createElementBlock("view", {
+            key: 0,
+            class: "bmi-display"
+          }, [
+            vue.createElementVNode("text", { class: "bmi-label" }, "您的BMI指数"),
+            vue.createElementVNode(
+              "text",
+              { class: "bmi-value" },
+              vue.toDisplayString($setup.bmi),
+              1
+              /* TEXT */
+            ),
+            vue.createElementVNode(
+              "text",
+              { class: "bmi-status" },
+              vue.toDisplayString($setup.bmiStatus),
+              1
+              /* TEXT */
+            )
+          ])) : vue.createCommentVNode("v-if", true)
+        ]),
+        vue.createElementVNode("view", { class: "button-section" }, [
+          vue.createElementVNode("button", {
+            class: vue.normalizeClass(["next-button", { active: $setup.canNext }]),
+            onClick: $setup.handleNext,
+            disabled: !$setup.canNext
+          }, " 下一步 ", 10, ["disabled"])
+        ])
+      ])
+    ]);
+  }
+  const PagesQuestionnaireBodyBody = /* @__PURE__ */ _export_sfc(_sfc_main$5, [["render", _sfc_render$4], ["__scopeId", "data-v-229eb5e6"], ["__file", "D:/Hbuilder/Project/Smartwatch/智音随行/pages/questionnaire/body/body.vue"]]);
+  const progress$2 = 66.67;
+  const _sfc_main$4 = {
+    __name: "exercise-freq",
+    setup(__props, { expose: __expose }) {
+      __expose();
+      const selectedFreq = vue.ref("");
+      const options = [
+        { value: "almost-none", label: "几乎不运动", icon: "🛋️" },
+        { value: "occasional", label: "偶尔运动", icon: "🚶" },
+        { value: "regular", label: "规律健身", icon: "🏃" },
+        { value: "professional", label: "专业训练", icon: "💪" }
+      ];
+      const selectFreq = (value) => {
+        selectedFreq.value = value;
+      };
+      const handleNext = () => {
+        if (!selectedFreq.value) {
+          uni.showToast({
+            title: "请选择运动频率",
+            icon: "none"
+          });
+          return;
+        }
+        updateUserProfile({
+          exerciseFrequency: selectedFreq.value
+        });
+        uni.redirectTo({
+          url: "/pages/questionnaire/exercise-type/exercise-type"
+        });
+      };
+      const __returned__ = { selectedFreq, progress: progress$2, options, selectFreq, handleNext, ref: vue.ref, get updateUserProfile() {
+        return updateUserProfile;
+      } };
+      Object.defineProperty(__returned__, "__isScriptSetup", { enumerable: false, value: true });
+      return __returned__;
+    }
+  };
+  function _sfc_render$3(_ctx, _cache, $props, $setup, $data, $options) {
+    return vue.openBlock(), vue.createElementBlock("view", { class: "questionnaire-container" }, [
+      vue.createElementVNode("view", { class: "progress-bar" }, [
+        vue.createElementVNode(
+          "view",
+          {
+            class: "progress-fill",
+            style: vue.normalizeStyle({ width: $setup.progress + "%" })
+          },
+          null,
+          4
+          /* STYLE */
+        )
+      ]),
+      vue.createElementVNode("view", { class: "content-wrapper" }, [
+        vue.createElementVNode("view", { class: "question-header" }, [
+          vue.createElementVNode("text", { class: "question-number" }, "4 / 6"),
+          vue.createElementVNode("text", { class: "question-title" }, "您的运动频率如何？"),
+          vue.createElementVNode("text", { class: "question-hint" }, "选择最符合您实际情况的选项")
+        ]),
+        vue.createElementVNode("view", { class: "options-section" }, [
+          (vue.openBlock(), vue.createElementBlock(
+            vue.Fragment,
+            null,
+            vue.renderList($setup.options, (option, index) => {
+              return vue.createElementVNode("view", {
+                class: vue.normalizeClass(["option-card", { selected: $setup.selectedFreq === option.value }]),
+                key: index,
+                onClick: ($event) => $setup.selectFreq(option.value)
+              }, [
+                vue.createElementVNode(
+                  "text",
+                  { class: "option-icon" },
+                  vue.toDisplayString(option.icon),
+                  1
+                  /* TEXT */
+                ),
+                vue.createElementVNode(
+                  "text",
+                  { class: "option-text" },
+                  vue.toDisplayString(option.label),
+                  1
+                  /* TEXT */
+                ),
+                $setup.selectedFreq === option.value ? (vue.openBlock(), vue.createElementBlock("view", {
+                  key: 0,
+                  class: "check-mark"
+                }, "✓")) : vue.createCommentVNode("v-if", true)
+              ], 10, ["onClick"]);
+            }),
+            64
+            /* STABLE_FRAGMENT */
+          ))
+        ]),
+        vue.createElementVNode("view", { class: "button-section" }, [
+          vue.createElementVNode("button", {
+            class: vue.normalizeClass(["next-button", { active: $setup.selectedFreq }]),
+            onClick: $setup.handleNext,
+            disabled: !$setup.selectedFreq
+          }, " 下一步 ", 10, ["disabled"])
+        ])
+      ])
+    ]);
+  }
+  const PagesQuestionnaireExerciseFreqExerciseFreq = /* @__PURE__ */ _export_sfc(_sfc_main$4, [["render", _sfc_render$3], ["__scopeId", "data-v-f195b24a"], ["__file", "D:/Hbuilder/Project/Smartwatch/智音随行/pages/questionnaire/exercise-freq/exercise-freq.vue"]]);
+  const progress$1 = 83.33;
+  const _sfc_main$3 = {
+    __name: "exercise-type",
+    setup(__props, { expose: __expose }) {
+      __expose();
+      const selectedType = vue.ref("");
+      const options = [
+        { value: "running", label: "跑步", icon: "🏃" },
+        { value: "cycling", label: "骑行", icon: "🚴" },
+        { value: "strength", label: "力量训练/撸铁", icon: "🏋️" },
+        { value: "hiit", label: "HIIT", icon: "⚡" },
+        { value: "yoga", label: "瑜伽/拉伸", icon: "🧘" }
+      ];
+      const selectType = (value) => {
+        selectedType.value = value;
+      };
+      const handleNext = () => {
+        if (!selectedType.value) {
+          uni.showToast({
+            title: "请选择主要运动类型",
+            icon: "none"
+          });
+          return;
+        }
+        updateUserProfile({
+          exerciseType: selectedType.value
+        });
+        uni.redirectTo({
+          url: "/pages/questionnaire/music-genre/music-genre"
+        });
+      };
+      const __returned__ = { selectedType, progress: progress$1, options, selectType, handleNext, ref: vue.ref, get updateUserProfile() {
+        return updateUserProfile;
+      } };
+      Object.defineProperty(__returned__, "__isScriptSetup", { enumerable: false, value: true });
+      return __returned__;
+    }
+  };
+  function _sfc_render$2(_ctx, _cache, $props, $setup, $data, $options) {
+    return vue.openBlock(), vue.createElementBlock("view", { class: "questionnaire-container" }, [
+      vue.createElementVNode("view", { class: "progress-bar" }, [
+        vue.createElementVNode(
+          "view",
+          {
+            class: "progress-fill",
+            style: vue.normalizeStyle({ width: $setup.progress + "%" })
+          },
+          null,
+          4
+          /* STYLE */
+        )
+      ]),
+      vue.createElementVNode("view", { class: "content-wrapper" }, [
+        vue.createElementVNode("view", { class: "question-header" }, [
+          vue.createElementVNode("text", { class: "question-number" }, "5 / 6"),
+          vue.createElementVNode("text", { class: "question-title" }, "您的主要运动类型是？"),
+          vue.createElementVNode("text", { class: "question-hint" }, "选择您最常进行的运动方式")
+        ]),
+        vue.createElementVNode("view", { class: "options-section" }, [
+          (vue.openBlock(), vue.createElementBlock(
+            vue.Fragment,
+            null,
+            vue.renderList($setup.options, (option, index) => {
+              return vue.createElementVNode("view", {
+                class: vue.normalizeClass(["option-card", { selected: $setup.selectedType === option.value }]),
+                key: index,
+                onClick: ($event) => $setup.selectType(option.value)
+              }, [
+                vue.createElementVNode(
+                  "text",
+                  { class: "option-icon" },
+                  vue.toDisplayString(option.icon),
+                  1
+                  /* TEXT */
+                ),
+                vue.createElementVNode(
+                  "text",
+                  { class: "option-text" },
+                  vue.toDisplayString(option.label),
+                  1
+                  /* TEXT */
+                ),
+                $setup.selectedType === option.value ? (vue.openBlock(), vue.createElementBlock("view", {
+                  key: 0,
+                  class: "check-mark"
+                }, "✓")) : vue.createCommentVNode("v-if", true)
+              ], 10, ["onClick"]);
+            }),
+            64
+            /* STABLE_FRAGMENT */
+          ))
+        ]),
+        vue.createElementVNode("view", { class: "button-section" }, [
+          vue.createElementVNode("button", {
+            class: vue.normalizeClass(["next-button", { active: $setup.selectedType }]),
+            onClick: $setup.handleNext,
+            disabled: !$setup.selectedType
+          }, " 下一步 ", 10, ["disabled"])
+        ])
+      ])
+    ]);
+  }
+  const PagesQuestionnaireExerciseTypeExerciseType = /* @__PURE__ */ _export_sfc(_sfc_main$3, [["render", _sfc_render$2], ["__scopeId", "data-v-6aeda2c9"], ["__file", "D:/Hbuilder/Project/Smartwatch/智音随行/pages/questionnaire/exercise-type/exercise-type.vue"]]);
+  const progress = 100;
+  const _sfc_main$2 = {
+    __name: "music-genre",
+    setup(__props, { expose: __expose }) {
+      __expose();
+      const selectedGenres = vue.ref([]);
+      const options = [
+        { value: "pop", label: "流行", en: "Pop", icon: "🎵" },
+        { value: "edm", label: "电子舞曲", en: "EDM", icon: "🎧" },
+        { value: "hiphop", label: "嘻哈", en: "Hip-Hop", icon: "🎤" },
+        { value: "rock", label: "摇滚", en: "Rock", icon: "🎸" },
+        { value: "classical", label: "古典", en: "Classical", icon: "🎹" }
+      ];
+      const canNext = vue.computed(() => {
+        return selectedGenres.value.length > 0;
+      });
+      const toggleGenre = (value) => {
+        const index = selectedGenres.value.indexOf(value);
+        if (index > -1) {
+          selectedGenres.value.splice(index, 1);
+        } else {
+          selectedGenres.value.push(value);
+        }
+      };
+      const handleComplete = () => {
+        if (!canNext.value) {
+          uni.showToast({
+            title: "请至少选择一个音乐流派",
+            icon: "none"
+          });
+          return;
+        }
+        updateUserProfile({
+          musicGenres: selectedGenres.value
+        });
+        markQuestionnaireCompleted();
+        uni.showToast({
+          title: "问卷完成！",
+          icon: "success",
+          duration: 1500
+        });
+        setTimeout(() => {
+          uni.reLaunch({
+            url: "/pages/index/index"
+          });
+        }, 1500);
+      };
+      const __returned__ = { selectedGenres, progress, options, canNext, toggleGenre, handleComplete, ref: vue.ref, computed: vue.computed, get updateUserProfile() {
+        return updateUserProfile;
+      }, get markQuestionnaireCompleted() {
+        return markQuestionnaireCompleted;
+      } };
+      Object.defineProperty(__returned__, "__isScriptSetup", { enumerable: false, value: true });
+      return __returned__;
+    }
+  };
+  function _sfc_render$1(_ctx, _cache, $props, $setup, $data, $options) {
+    return vue.openBlock(), vue.createElementBlock("view", { class: "questionnaire-container" }, [
+      vue.createElementVNode("view", { class: "progress-bar" }, [
+        vue.createElementVNode(
+          "view",
+          {
+            class: "progress-fill",
+            style: vue.normalizeStyle({ width: $setup.progress + "%" })
+          },
+          null,
+          4
+          /* STYLE */
+        )
+      ]),
+      vue.createElementVNode("view", { class: "content-wrapper" }, [
+        vue.createElementVNode("view", { class: "question-header" }, [
+          vue.createElementVNode("text", { class: "question-number" }, "6 / 6"),
+          vue.createElementVNode("text", { class: "question-title" }, "您喜欢的音乐流派？"),
+          vue.createElementVNode("text", { class: "question-hint" }, "可选择多个选项，帮助我们更好地为您推荐音乐")
+        ]),
+        vue.createElementVNode("view", { class: "options-section" }, [
+          (vue.openBlock(), vue.createElementBlock(
+            vue.Fragment,
+            null,
+            vue.renderList($setup.options, (option, index) => {
+              return vue.createElementVNode("view", {
+                class: vue.normalizeClass(["option-card", { selected: $setup.selectedGenres.includes(option.value) }]),
+                key: index,
+                onClick: ($event) => $setup.toggleGenre(option.value)
+              }, [
+                vue.createElementVNode(
+                  "text",
+                  { class: "option-icon" },
+                  vue.toDisplayString(option.icon),
+                  1
+                  /* TEXT */
+                ),
+                vue.createElementVNode(
+                  "text",
+                  { class: "option-text" },
+                  vue.toDisplayString(option.label),
+                  1
+                  /* TEXT */
+                ),
+                vue.createElementVNode(
+                  "text",
+                  { class: "option-en" },
+                  vue.toDisplayString(option.en),
+                  1
+                  /* TEXT */
+                ),
+                $setup.selectedGenres.includes(option.value) ? (vue.openBlock(), vue.createElementBlock("view", {
+                  key: 0,
+                  class: "check-mark"
+                }, "✓")) : vue.createCommentVNode("v-if", true)
+              ], 10, ["onClick"]);
+            }),
+            64
+            /* STABLE_FRAGMENT */
+          ))
+        ]),
+        vue.createElementVNode("view", { class: "button-section" }, [
+          vue.createElementVNode("button", {
+            class: vue.normalizeClass(["next-button", { active: $setup.canNext }]),
+            onClick: $setup.handleComplete,
+            disabled: !$setup.canNext
+          }, " 完成 ", 10, ["disabled"])
+        ])
+      ])
+    ]);
+  }
+  const PagesQuestionnaireMusicGenreMusicGenre = /* @__PURE__ */ _export_sfc(_sfc_main$2, [["render", _sfc_render$1], ["__scopeId", "data-v-819b469d"], ["__file", "D:/Hbuilder/Project/Smartwatch/智音随行/pages/questionnaire/music-genre/music-genre.vue"]]);
   const HR_TOLERANCE = 3;
   const CATEGORY_SWITCH_DELAY = 3e4;
   const _sfc_main$1 = {
@@ -1239,6 +2041,13 @@ if (uni.restoreGlobal) {
     ]);
   }
   const PagesIndexIndex = /* @__PURE__ */ _export_sfc(_sfc_main$1, [["render", _sfc_render], ["__scopeId", "data-v-1cf27b2a"], ["__file", "D:/Hbuilder/Project/Smartwatch/智音随行/pages/index/index.vue"]]);
+  __definePage("pages/welcome/welcome", PagesWelcomeWelcome);
+  __definePage("pages/questionnaire/age/age", PagesQuestionnaireAgeAge);
+  __definePage("pages/questionnaire/gender/gender", PagesQuestionnaireGenderGender);
+  __definePage("pages/questionnaire/body/body", PagesQuestionnaireBodyBody);
+  __definePage("pages/questionnaire/exercise-freq/exercise-freq", PagesQuestionnaireExerciseFreqExerciseFreq);
+  __definePage("pages/questionnaire/exercise-type/exercise-type", PagesQuestionnaireExerciseTypeExerciseType);
+  __definePage("pages/questionnaire/music-genre/music-genre", PagesQuestionnaireMusicGenreMusicGenre);
   __definePage("pages/index/index", PagesIndexIndex);
   const _sfc_main = {
     __name: "App",
