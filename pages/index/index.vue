@@ -47,6 +47,16 @@
         </scroll-view>
       </view>
       
+      <!-- 手表当前时间显示 -->
+      <view class="watch-time" v-if="isConnected">
+        <view class="time-header">
+          <text class="time-title">手表当前时间</text>
+        </view>
+        <view class="time-content">
+          <text class="time-value">{{ sensorData.time || '--' }}</text>
+        </view>
+      </view>
+      
       <!-- 传感器数据显示 + 音乐控制 -->
       <view class="sensor-data" v-if="isConnected">
         <view class="sensor-grid">
@@ -65,10 +75,6 @@
           <view class="sensor-item">
             <text class="sensor-label">温度</text>
             <text class="sensor-value">{{ sensorData.temperature ?? '--' }} °C</text>
-          </view>
-          <view class="sensor-item">
-            <text class="sensor-label">湿度</text>
-            <text class="sensor-value">{{ sensorData.humidity ?? '--' }} %</text>
           </view>
         </view>
 
@@ -95,6 +101,9 @@
               </text>
             </view>
             <view class="music-controls">
+              <button class="like-btn" @click="toggleLike" :disabled="!currentTrackName">
+                <text class="like-icon" :class="{ liked: isLiked }">{{ isLiked ? '❤️' : '🤍' }}</text>
+              </button>
               <button class="music-btn" @click="playPrevTrack" :disabled="!canControlTrack">«</button>
               <button class="music-btn main" @click="togglePlayPause" :disabled="!canControlTrack && !canStartPlay">
                 {{ isPlaying ? '暂停' : '播放' }}
@@ -124,41 +133,19 @@
       </view>
     </view>
 
-    <!-- 底部输入区域 -->
-    <view class="bottom-section">
-      <view class="input-container">
-        <input class="input-field" v-model="inputMessage" 
-               placeholder="输入要发送的数据..." 
-               placeholder-class="input-placeholder"
-               @confirm="sendData" />
-        
-        <button class="send-btn" @click="sendData" :disabled="!isConnected || !inputMessage">
-          发送
-        </button>
-      </view>
-      
-      <view class="quick-commands">
-        <text class="commands-title">快捷指令</text>
-        <view class="command-buttons">
-          <button v-for="cmd in quickCommands" :key="cmd.name"
-                  class="cmd-btn" @click="sendQuickCommand(cmd)">
-            {{ cmd.name }}
-          </button>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { saveConnectedDevice, getLastConnectedDevice } from '../../utils/bluetoothStorage'
+import { uploadToServer, formatDataForLog } from '../../utils/serverApi'
 
 // 状态管理
 const isConnected = ref(false)
 const scanning = ref(false)
 const batteryLevel = ref(100)
 const connectedDeviceName = ref('')
-const inputMessage = ref('')
 const discoveredDevices = ref([])
 let scanStopTimer = null
 
@@ -171,7 +158,7 @@ const sensorData = reactive({
   spo2: null,
   steps: null,
   temperature: null,
-  humidity: null
+  time: null
 })
 
 // 心率与音乐映射
@@ -184,6 +171,10 @@ const manualOverride = ref(false)
 const manualCategory = ref('slow')
 const isPlaying = ref(false)
 const currentTrackName = ref('')
+const isLiked = ref(false)
+const musicPlayTime = ref(0) // 音乐播放时间（秒）
+let musicPlayTimer = null
+let musicStartTime = null
 
 let lastHeartRate = null
 let pendingCategory = null
@@ -396,14 +387,6 @@ const canStartPlay = computed(() => {
   return !!(cfg && cfg.tracks && cfg.tracks.length > 0)
 })
 
-// 快捷指令
-const quickCommands = [
-  { name: '获取心率', command: 'GET_HR' },
-  { name: '获取步数', command: 'GET_STEPS' },
-  { name: '同步时间', command: 'SYNC_TIME' },
-  { name: '设备信息', command: 'GET_INFO' }
-]
-
 // 蓝牙设备相关变量
 let bluetoothDevice = null
 let writeServiceId = null
@@ -416,10 +399,12 @@ let receiveBuffer = ''	//接收数据缓冲区
 onMounted(() => {
   initBluetooth()
   startBatteryMonitoring()
+  autoConnectDevice()
 })
 
 onUnmounted(() => {
   disconnect()
+  stopMusicPlayTimer()
 })
 
 // 初始化蓝牙
@@ -440,6 +425,68 @@ const initBluetooth = async () => {
       icon: 'none'
     })
   }
+}
+
+// 自动连接设备
+const autoConnectDevice = async () => {
+  const lastDevice = getLastConnectedDevice()
+  if (!lastDevice || !lastDevice.deviceId) {
+    return
+  }
+  
+  // 延迟一下，确保蓝牙适配器已初始化
+  setTimeout(async () => {
+    try {
+      await new Promise((resolve, reject) => {
+        uni.openBluetoothAdapter({
+          success: resolve,
+          fail: reject
+        })
+      })
+      
+      // 开始扫描
+      scanning.value = true
+      discoveredDevices.value = []
+      
+      await new Promise((resolve, reject) => {
+        uni.startBluetoothDevicesDiscovery({
+          allowDuplicatesKey: false,
+          success: resolve,
+          fail: reject
+        })
+      })
+      
+      // 监听发现设备
+      const foundDeviceHandler = (devices) => {
+        const list = devices.devices || []
+        const targetDevice = list.find(d => d.deviceId === lastDevice.deviceId)
+        
+        if (targetDevice) {
+          uni.stopBluetoothDevicesDiscovery()
+          uni.offBluetoothDeviceFound(foundDeviceHandler)
+          scanning.value = false
+          
+          connectToDevice({
+            deviceId: targetDevice.deviceId,
+            name: targetDevice.name || targetDevice.localName || lastDevice.name
+          })
+        }
+      }
+      
+      uni.onBluetoothDeviceFound(foundDeviceHandler)
+      
+      // 6秒后停止扫描
+      scanStopTimer = setTimeout(() => {
+        uni.stopBluetoothDevicesDiscovery()
+        uni.offBluetoothDeviceFound(foundDeviceHandler)
+        scanning.value = false
+      }, 6000)
+      
+    } catch (error) {
+      console.error('自动连接失败', error)
+      scanning.value = false
+    }
+  }, 1000)
 }
 
 // 扫描设备
@@ -531,6 +578,9 @@ const connectToDevice = async (device) => {
     bluetoothDevice = device
     isConnected.value = true
     connectedDeviceName.value = device.name
+    
+    // 保存连接的设备信息
+    saveConnectedDevice(device)
     
     // 获取服务
     const servicesRes = await new Promise((resolve, reject) => {
@@ -635,51 +685,6 @@ const disconnect = async () => {
   })
 }
 
-// 发送数据
-const sendData = async () => {
-  if (!inputMessage.value.trim() || !isConnected.value) return
-  
-  try {
-    if (!writeServiceId || !writeCharId) {
-      uni.showToast({ title: '未找到可写特征', icon: 'none' })
-      return
-    }
-    const text = inputMessage.value
-    const buffer = str2ab(text)
-    const maxLen = 20
-    const u8 = new Uint8Array(buffer)
-    for (let i = 0; i < u8.length; i += maxLen) {
-      const chunk = u8.slice(i, i + maxLen)
-      await new Promise((resolve, reject) => {
-        uni.writeBLECharacteristicValue({
-          deviceId: bluetoothDevice.deviceId,
-          serviceId: writeServiceId,
-          characteristicId: writeCharId,
-          value: chunk.buffer,
-          success: resolve,
-          fail: reject
-        })
-      })
-      await delay(20)
-    }
-    
-    addLog(text, 'sent')
-    inputMessage.value = ''
-    
-  } catch (error) {
-    console.error('发送数据失败', error)
-    uni.showToast({
-      title: '发送失败',
-      icon: 'none'
-    })
-  }
-}
-
-// 发送快捷指令
-const sendQuickCommand = (cmd) => {
-  inputMessage.value = cmd.command
-  sendData()
-}
 
 // 处理接收到的数据（已修复分包粘包问题）
 const handleReceivedData = (data) => {
@@ -775,11 +780,11 @@ const parseDeviceLine = (line) => {
     return
   }
 
-  // 湿度
-  if (/humidity/i.test(line)) {
-    const match = line.match(/(\d+(\.\d+)?)/)
-    if (match) {
-      sensorData.humidity = parseFloat(match[1])
+  // 时间
+  if (/TIME:/i.test(line) || /time:/i.test(line)) {
+    const timeStr = line.split(':')[1]?.trim()
+    if (timeStr) {
+      sensorData.time = timeStr
     }
     return
   }
@@ -930,21 +935,81 @@ const ensureAudioContext = () => {
     audioCtx.loop = true
     audioCtx.onPlay(() => {
       isPlaying.value = true
+      startMusicPlayTimer()
     })
     audioCtx.onPause(() => {
       isPlaying.value = false
+      stopMusicPlayTimer()
     })
     audioCtx.onStop(() => {
       isPlaying.value = false
+      stopMusicPlayTimer()
+      musicPlayTime.value = 0
     })
     audioCtx.onEnded(() => {
       isPlaying.value = false
+      stopMusicPlayTimer()
+      musicPlayTime.value = 0
     })
     audioCtx.onError((err) => {
       console.error('音乐播放错误', err)
       addLog('系统', '音乐播放出错', 'system')
       isPlaying.value = false
+      stopMusicPlayTimer()
     })
+  }
+}
+
+// 开始音乐播放时间计时
+const startMusicPlayTimer = () => {
+  stopMusicPlayTimer()
+  musicStartTime = Date.now()
+  musicPlayTimer = setInterval(() => {
+    if (musicStartTime) {
+      musicPlayTime.value = Math.floor((Date.now() - musicStartTime) / 1000)
+    }
+  }, 1000)
+}
+
+// 停止音乐播放时间计时
+const stopMusicPlayTimer = () => {
+  if (musicPlayTimer) {
+    clearInterval(musicPlayTimer)
+    musicPlayTimer = null
+  }
+  musicStartTime = null
+}
+
+// 切换喜欢状态
+const toggleLike = () => {
+  if (!currentTrackName.value) return
+  isLiked.value = !isLiked.value
+}
+
+// 上传状态信息到服务器
+const uploadStatusInfo = async () => {
+  const statusData = {
+    heartRate: sensorData.heartRate || '--',
+    spo2: sensorData.spo2 || '--',
+    steps: sensorData.steps || '--',
+    temperature: sensorData.temperature || '--',
+    currentTrackName: currentTrackName.value || '未选择',
+    musicCategory: currentMusicCategoryLabel.value,
+    musicPlayTime: musicPlayTime.value,
+    isLiked: isLiked.value ? '是' : '否'
+  }
+  
+  // 打印到控制台
+  console.log('========== 用户状态信息 ==========')
+  console.log(formatDataForLog(statusData))
+  console.log('================================')
+  
+  // 上传到服务器
+  try {
+    await uploadToServer(statusData)
+    console.log('状态信息上传成功')
+  } catch (error) {
+    console.error('状态信息上传失败:', error)
   }
 }
 
@@ -1004,10 +1069,20 @@ const playTrackByIndex = async (category, index) => {
   if (idx < 0) idx = total - 1
   if (idx >= total) idx = 0
   
+  // 如果是切换歌曲，先上传当前状态信息
+  if (currentTrackName.value) {
+    await uploadStatusInfo()
+  }
+  
   cfg.currentIndex = idx
   const track = cfg.tracks[idx]
   
   ensureAudioContext()
+  
+  // 重置播放时间和喜欢状态
+  stopMusicPlayTimer()
+  musicPlayTime.value = 0
+  isLiked.value = false
   
   // 关键修正：确保路径拼接正确
   // cfg.folder 已经是 '/static/...'

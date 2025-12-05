@@ -740,6 +740,44 @@ if (uni.restoreGlobal) {
     ]);
   }
   const PagesQuestionnaireExerciseTypeExerciseType = /* @__PURE__ */ _export_sfc(_sfc_main$3, [["render", _sfc_render$2], ["__scopeId", "data-v-6aeda2c9"], ["__file", "D:/Hbuilder/Project/Smartwatch/智音随行/pages/questionnaire/exercise-type/exercise-type.vue"]]);
+  const SERVER_IP = "39.107.190.29";
+  const SERVER_URL = `http://${SERVER_IP}/calculate`;
+  function uploadToServer(data) {
+    return new Promise((resolve, reject) => {
+      const formattedData = {};
+      for (const [key, value] of Object.entries(data)) {
+        formattedData[key] = `${key}：${value}`;
+      }
+      uni.request({
+        url: SERVER_URL,
+        method: "POST",
+        data: formattedData,
+        header: {
+          "Content-Type": "application/json"
+        },
+        timeout: 5e3,
+        success: (res) => {
+          formatAppLog("log", "at utils/serverApi.js:30", "服务器响应:", res);
+          if (res.statusCode === 200) {
+            resolve(res.data);
+          } else {
+            reject(new Error(`服务器错误: ${res.statusCode}`));
+          }
+        },
+        fail: (err) => {
+          formatAppLog("error", "at utils/serverApi.js:38", "上传数据失败:", err);
+          reject(err);
+        }
+      });
+    });
+  }
+  function formatDataForLog(data) {
+    const lines = [];
+    for (const [key, value] of Object.entries(data)) {
+      lines.push(`${key}：${value}`);
+    }
+    return lines.join("\n");
+  }
   const progress = 100;
   const _sfc_main$2 = {
     __name: "music-genre",
@@ -764,7 +802,7 @@ if (uni.restoreGlobal) {
           selectedGenres.value.push(value);
         }
       };
-      const handleComplete = () => {
+      const handleComplete = async () => {
         if (!canNext.value) {
           uni.showToast({
             title: "请至少选择一个音乐流派",
@@ -775,6 +813,16 @@ if (uni.restoreGlobal) {
         updateUserProfile({
           musicGenres: selectedGenres.value
         });
+        const userProfile = getUserProfile();
+        formatAppLog("log", "at pages/questionnaire/music-genre/music-genre.vue:90", "========== 用户问卷信息 ==========");
+        formatAppLog("log", "at pages/questionnaire/music-genre/music-genre.vue:91", formatDataForLog(userProfile));
+        formatAppLog("log", "at pages/questionnaire/music-genre/music-genre.vue:92", "================================");
+        try {
+          await uploadToServer(userProfile);
+          formatAppLog("log", "at pages/questionnaire/music-genre/music-genre.vue:97", "用户信息上传成功");
+        } catch (error) {
+          formatAppLog("error", "at pages/questionnaire/music-genre/music-genre.vue:99", "用户信息上传失败:", error);
+        }
         markQuestionnaireCompleted();
         uni.showToast({
           title: "问卷完成！",
@@ -791,6 +839,12 @@ if (uni.restoreGlobal) {
         return updateUserProfile;
       }, get markQuestionnaireCompleted() {
         return markQuestionnaireCompleted;
+      }, get getUserProfile() {
+        return getUserProfile;
+      }, get uploadToServer() {
+        return uploadToServer;
+      }, get formatDataForLog() {
+        return formatDataForLog;
       } };
       Object.defineProperty(__returned__, "__isScriptSetup", { enumerable: false, value: true });
       return __returned__;
@@ -868,6 +922,30 @@ if (uni.restoreGlobal) {
     ]);
   }
   const PagesQuestionnaireMusicGenreMusicGenre = /* @__PURE__ */ _export_sfc(_sfc_main$2, [["render", _sfc_render$1], ["__scopeId", "data-v-819b469d"], ["__file", "D:/Hbuilder/Project/Smartwatch/智音随行/pages/questionnaire/music-genre/music-genre.vue"]]);
+  const BLUETOOTH_DEVICE_KEY = "last_connected_bluetooth_device";
+  function saveConnectedDevice(device) {
+    try {
+      const deviceInfo = {
+        deviceId: device.deviceId,
+        name: device.name || device.localName || "",
+        timestamp: Date.now()
+      };
+      uni.setStorageSync(BLUETOOTH_DEVICE_KEY, deviceInfo);
+      return true;
+    } catch (error) {
+      formatAppLog("error", "at utils/bluetoothStorage.js:20", "保存蓝牙设备信息失败:", error);
+      return false;
+    }
+  }
+  function getLastConnectedDevice() {
+    try {
+      const device = uni.getStorageSync(BLUETOOTH_DEVICE_KEY);
+      return device || null;
+    } catch (error) {
+      formatAppLog("error", "at utils/bluetoothStorage.js:33", "获取蓝牙设备信息失败:", error);
+      return null;
+    }
+  }
   const HR_TOLERANCE = 3;
   const CATEGORY_SWITCH_DELAY = 3e4;
   const _sfc_main$1 = {
@@ -878,7 +956,6 @@ if (uni.restoreGlobal) {
       const scanning = vue.ref(false);
       const batteryLevel = vue.ref(100);
       const connectedDeviceName = vue.ref("");
-      const inputMessage = vue.ref("");
       const discoveredDevices = vue.ref([]);
       let scanStopTimer = null;
       const dataList = vue.ref([]);
@@ -887,7 +964,7 @@ if (uni.restoreGlobal) {
         spo2: null,
         steps: null,
         temperature: null,
-        humidity: null
+        time: null
       });
       const currentHeartRate = vue.ref(null);
       const currentMusicCategory = vue.ref("none");
@@ -895,6 +972,10 @@ if (uni.restoreGlobal) {
       const manualCategory = vue.ref("slow");
       const isPlaying = vue.ref(false);
       const currentTrackName = vue.ref("");
+      const isLiked = vue.ref(false);
+      const musicPlayTime = vue.ref(0);
+      let musicPlayTimer = null;
+      let musicStartTime = null;
       let lastHeartRate = null;
       let pendingCategory = null;
       let pendingStartTime = null;
@@ -1088,12 +1169,6 @@ if (uni.restoreGlobal) {
         const cfg = musicLibrary[currentMusicCategory.value];
         return !!(cfg && cfg.tracks && cfg.tracks.length > 0);
       });
-      const quickCommands = [
-        { name: "获取心率", command: "GET_HR" },
-        { name: "获取步数", command: "GET_STEPS" },
-        { name: "同步时间", command: "SYNC_TIME" },
-        { name: "设备信息", command: "GET_INFO" }
-      ];
       let bluetoothDevice = null;
       let writeServiceId = null;
       let writeCharId = null;
@@ -1103,9 +1178,11 @@ if (uni.restoreGlobal) {
       vue.onMounted(() => {
         initBluetooth();
         startBatteryMonitoring();
+        autoConnectDevice();
       });
       vue.onUnmounted(() => {
         disconnect();
+        stopMusicPlayTimer();
       });
       const initBluetooth = async () => {
         try {
@@ -1115,15 +1192,62 @@ if (uni.restoreGlobal) {
               fail: reject
             });
           });
-          formatAppLog("log", "at pages/index/index.vue:434", "蓝牙适配器初始化成功");
+          formatAppLog("log", "at pages/index/index.vue:419", "蓝牙适配器初始化成功");
           addLog("系统", "蓝牙适配器已就绪", "system");
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:437", "蓝牙初始化失败", error);
+          formatAppLog("error", "at pages/index/index.vue:422", "蓝牙初始化失败", error);
           uni.showToast({
             title: "蓝牙初始化失败",
             icon: "none"
           });
         }
+      };
+      const autoConnectDevice = async () => {
+        const lastDevice = getLastConnectedDevice();
+        if (!lastDevice || !lastDevice.deviceId) {
+          return;
+        }
+        setTimeout(async () => {
+          try {
+            await new Promise((resolve, reject) => {
+              uni.openBluetoothAdapter({
+                success: resolve,
+                fail: reject
+              });
+            });
+            scanning.value = true;
+            discoveredDevices.value = [];
+            await new Promise((resolve, reject) => {
+              uni.startBluetoothDevicesDiscovery({
+                allowDuplicatesKey: false,
+                success: resolve,
+                fail: reject
+              });
+            });
+            const foundDeviceHandler = (devices) => {
+              const list = devices.devices || [];
+              const targetDevice = list.find((d) => d.deviceId === lastDevice.deviceId);
+              if (targetDevice) {
+                uni.stopBluetoothDevicesDiscovery();
+                uni.offBluetoothDeviceFound(foundDeviceHandler);
+                scanning.value = false;
+                connectToDevice({
+                  deviceId: targetDevice.deviceId,
+                  name: targetDevice.name || targetDevice.localName || lastDevice.name
+                });
+              }
+            };
+            uni.onBluetoothDeviceFound(foundDeviceHandler);
+            scanStopTimer = setTimeout(() => {
+              uni.stopBluetoothDevicesDiscovery();
+              uni.offBluetoothDeviceFound(foundDeviceHandler);
+              scanning.value = false;
+            }, 6e3);
+          } catch (error) {
+            formatAppLog("error", "at pages/index/index.vue:486", "自动连接失败", error);
+            scanning.value = false;
+          }
+        }, 1e3);
       };
       const scanDevices = async () => {
         if (scanning.value)
@@ -1137,7 +1261,7 @@ if (uni.restoreGlobal) {
               uni.openBluetoothAdapter({
                 success: resolve,
                 fail: (err) => {
-                  formatAppLog("error", "at pages/index/index.vue:460", "重新打开蓝牙适配器失败", err);
+                  formatAppLog("error", "at pages/index/index.vue:507", "重新打开蓝牙适配器失败", err);
                   resolve();
                 }
               });
@@ -1185,7 +1309,7 @@ if (uni.restoreGlobal) {
             }
           }, 6e3);
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:508", "扫描设备失败", error);
+          formatAppLog("error", "at pages/index/index.vue:555", "扫描设备失败", error);
           scanning.value = false;
           uni.showToast({
             title: "扫描失败",
@@ -1207,6 +1331,7 @@ if (uni.restoreGlobal) {
           bluetoothDevice = device;
           isConnected.value = true;
           connectedDeviceName.value = device.name;
+          saveConnectedDevice(device);
           const servicesRes = await new Promise((resolve, reject) => {
             uni.getBLEDeviceServices({
               deviceId: device.deviceId,
@@ -1266,7 +1391,7 @@ if (uni.restoreGlobal) {
           });
           switchMusicCategory("mid");
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:601", "连接设备失败", error);
+          formatAppLog("error", "at pages/index/index.vue:651", "连接设备失败", error);
           uni.showToast({
             title: "连接失败",
             icon: "none"
@@ -1283,7 +1408,7 @@ if (uni.restoreGlobal) {
               });
             });
           } catch (error) {
-            formatAppLog("error", "at pages/index/index.vue:620", "断开连接失败", error);
+            formatAppLog("error", "at pages/index/index.vue:670", "断开连接失败", error);
           }
         }
         isConnected.value = false;
@@ -1298,46 +1423,6 @@ if (uni.restoreGlobal) {
           title: "已断开",
           icon: "none"
         });
-      };
-      const sendData = async () => {
-        if (!inputMessage.value.trim() || !isConnected.value)
-          return;
-        try {
-          if (!writeServiceId || !writeCharId) {
-            uni.showToast({ title: "未找到可写特征", icon: "none" });
-            return;
-          }
-          const text = inputMessage.value;
-          const buffer = str2ab(text);
-          const maxLen = 20;
-          const u8 = new Uint8Array(buffer);
-          for (let i = 0; i < u8.length; i += maxLen) {
-            const chunk = u8.slice(i, i + maxLen);
-            await new Promise((resolve, reject) => {
-              uni.writeBLECharacteristicValue({
-                deviceId: bluetoothDevice.deviceId,
-                serviceId: writeServiceId,
-                characteristicId: writeCharId,
-                value: chunk.buffer,
-                success: resolve,
-                fail: reject
-              });
-            });
-            await delay(20);
-          }
-          addLog(text, "sent");
-          inputMessage.value = "";
-        } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:670", "发送数据失败", error);
-          uni.showToast({
-            title: "发送失败",
-            icon: "none"
-          });
-        }
-      };
-      const sendQuickCommand = (cmd) => {
-        inputMessage.value = cmd.command;
-        sendData();
       };
       const handleReceivedData = (data) => {
         if (!data)
@@ -1355,27 +1440,28 @@ if (uni.restoreGlobal) {
         }
       };
       const parseDeviceLine = (line) => {
+        var _a;
         if (line.startsWith("MUSIC:PLAY")) {
           if (!isPlaying.value) {
-            formatAppLog("log", "at pages/index/index.vue:722", "收到远程指令: 播放");
+            formatAppLog("log", "at pages/index/index.vue:727", "收到远程指令: 播放");
             togglePlayPause();
           }
           return;
         }
         if (line.startsWith("MUSIC:PAUSE")) {
           if (isPlaying.value) {
-            formatAppLog("log", "at pages/index/index.vue:732", "收到远程指令: 暂停");
+            formatAppLog("log", "at pages/index/index.vue:737", "收到远程指令: 暂停");
             togglePlayPause();
           }
           return;
         }
         if (line.startsWith("MUSIC:NEXT")) {
-          formatAppLog("log", "at pages/index/index.vue:740", "收到远程指令: 下一首");
+          formatAppLog("log", "at pages/index/index.vue:745", "收到远程指令: 下一首");
           playNextTrack();
           return;
         }
         if (line.startsWith("MUSIC:PREV")) {
-          formatAppLog("log", "at pages/index/index.vue:747", "收到远程指令: 上一首");
+          formatAppLog("log", "at pages/index/index.vue:752", "收到远程指令: 上一首");
           playPrevTrack();
           return;
         }
@@ -1399,10 +1485,10 @@ if (uni.restoreGlobal) {
           }
           return;
         }
-        if (/humidity/i.test(line)) {
-          const match = line.match(/(\d+(\.\d+)?)/);
-          if (match) {
-            sensorData.humidity = parseFloat(match[1]);
+        if (/TIME:/i.test(line) || /time:/i.test(line)) {
+          const timeStr = (_a = line.split(":")[1]) == null ? void 0 : _a.trim();
+          if (timeStr) {
+            sensorData.time = timeStr;
           }
           return;
         }
@@ -1523,21 +1609,70 @@ if (uni.restoreGlobal) {
           audioCtx.loop = true;
           audioCtx.onPlay(() => {
             isPlaying.value = true;
+            startMusicPlayTimer();
           });
           audioCtx.onPause(() => {
             isPlaying.value = false;
+            stopMusicPlayTimer();
           });
           audioCtx.onStop(() => {
             isPlaying.value = false;
+            stopMusicPlayTimer();
+            musicPlayTime.value = 0;
           });
           audioCtx.onEnded(() => {
             isPlaying.value = false;
+            stopMusicPlayTimer();
+            musicPlayTime.value = 0;
           });
           audioCtx.onError((err) => {
-            formatAppLog("error", "at pages/index/index.vue:944", "音乐播放错误", err);
+            formatAppLog("error", "at pages/index/index.vue:955", "音乐播放错误", err);
             addLog("系统", "音乐播放出错");
             isPlaying.value = false;
+            stopMusicPlayTimer();
           });
+        }
+      };
+      const startMusicPlayTimer = () => {
+        stopMusicPlayTimer();
+        musicStartTime = Date.now();
+        musicPlayTimer = setInterval(() => {
+          if (musicStartTime) {
+            musicPlayTime.value = Math.floor((Date.now() - musicStartTime) / 1e3);
+          }
+        }, 1e3);
+      };
+      const stopMusicPlayTimer = () => {
+        if (musicPlayTimer) {
+          clearInterval(musicPlayTimer);
+          musicPlayTimer = null;
+        }
+        musicStartTime = null;
+      };
+      const toggleLike = () => {
+        if (!currentTrackName.value)
+          return;
+        isLiked.value = !isLiked.value;
+      };
+      const uploadStatusInfo = async () => {
+        const statusData = {
+          heartRate: sensorData.heartRate || "--",
+          spo2: sensorData.spo2 || "--",
+          steps: sensorData.steps || "--",
+          temperature: sensorData.temperature || "--",
+          currentTrackName: currentTrackName.value || "未选择",
+          musicCategory: currentMusicCategoryLabel.value,
+          musicPlayTime: musicPlayTime.value,
+          isLiked: isLiked.value ? "是" : "否"
+        };
+        formatAppLog("log", "at pages/index/index.vue:1003", "========== 用户状态信息 ==========");
+        formatAppLog("log", "at pages/index/index.vue:1004", formatDataForLog(statusData));
+        formatAppLog("log", "at pages/index/index.vue:1005", "================================");
+        try {
+          await uploadToServer(statusData);
+          formatAppLog("log", "at pages/index/index.vue:1010", "状态信息上传成功");
+        } catch (error) {
+          formatAppLog("error", "at pages/index/index.vue:1012", "状态信息上传失败:", error);
         }
       };
       const loadCategoryTracks = (category) => {
@@ -1547,9 +1682,9 @@ if (uni.restoreGlobal) {
           if (tracks.length > 0) {
             cfg.tracks = tracks;
             cfg.loaded = true;
-            formatAppLog("log", "at pages/index/index.vue:962", `分类 ${category} 加载了 ${tracks.length} 首歌曲`);
+            formatAppLog("log", "at pages/index/index.vue:1027", `分类 ${category} 加载了 ${tracks.length} 首歌曲`);
           } else {
-            formatAppLog("warn", "at pages/index/index.vue:964", `分类 ${category} 没有定义歌曲`);
+            formatAppLog("warn", "at pages/index/index.vue:1029", `分类 ${category} 没有定义歌曲`);
             addLog("系统", `分类 ${category} 暂无歌曲配置`);
           }
           resolve();
@@ -1588,11 +1723,17 @@ if (uni.restoreGlobal) {
           idx = total - 1;
         if (idx >= total)
           idx = 0;
+        if (currentTrackName.value) {
+          await uploadStatusInfo();
+        }
         cfg.currentIndex = idx;
         const track = cfg.tracks[idx];
         ensureAudioContext();
+        stopMusicPlayTimer();
+        musicPlayTime.value = 0;
+        isLiked.value = false;
         const fullPath = cfg.folder + track.file;
-        formatAppLog("log", "at pages/index/index.vue:1016", "准备播放:", fullPath);
+        formatAppLog("log", "at pages/index/index.vue:1091", "准备播放:", fullPath);
         audioCtx.src = fullPath;
         audioCtx.play();
         isPlaying.value = true;
@@ -1656,11 +1797,19 @@ if (uni.restoreGlobal) {
         const prevIndex = cfg.currentIndex >= 0 ? cfg.currentIndex - 1 : cfg.tracks.length - 1;
         await playTrackByIndex(currentMusicCategory.value, prevIndex);
       };
-      const __returned__ = { isConnected, scanning, batteryLevel, connectedDeviceName, inputMessage, discoveredDevices, get scanStopTimer() {
+      const __returned__ = { isConnected, scanning, batteryLevel, connectedDeviceName, discoveredDevices, get scanStopTimer() {
         return scanStopTimer;
       }, set scanStopTimer(v) {
         scanStopTimer = v;
-      }, dataList, sensorData, HR_TOLERANCE, CATEGORY_SWITCH_DELAY, currentHeartRate, currentMusicCategory, manualOverride, manualCategory, isPlaying, currentTrackName, get lastHeartRate() {
+      }, dataList, sensorData, HR_TOLERANCE, CATEGORY_SWITCH_DELAY, currentHeartRate, currentMusicCategory, manualOverride, manualCategory, isPlaying, currentTrackName, isLiked, musicPlayTime, get musicPlayTimer() {
+        return musicPlayTimer;
+      }, set musicPlayTimer(v) {
+        musicPlayTimer = v;
+      }, get musicStartTime() {
+        return musicStartTime;
+      }, set musicStartTime(v) {
+        musicStartTime = v;
+      }, get lastHeartRate() {
         return lastHeartRate;
       }, set lastHeartRate(v) {
         lastHeartRate = v;
@@ -1676,7 +1825,7 @@ if (uni.restoreGlobal) {
         return audioCtx;
       }, set audioCtx(v) {
         audioCtx = v;
-      }, musicCategoryOptions, thresholdDisplayList, currentMusicCategoryLabel, manualCategoryLabel, canControlTrack, canStartPlay, quickCommands, get bluetoothDevice() {
+      }, musicCategoryOptions, thresholdDisplayList, currentMusicCategoryLabel, manualCategoryLabel, canControlTrack, canStartPlay, get bluetoothDevice() {
         return bluetoothDevice;
       }, set bluetoothDevice(v) {
         bluetoothDevice = v;
@@ -1700,7 +1849,15 @@ if (uni.restoreGlobal) {
         return receiveBuffer;
       }, set receiveBuffer(v) {
         receiveBuffer = v;
-      }, initBluetooth, scanDevices, connectToDevice, disconnect, sendData, sendQuickCommand, handleReceivedData, parseDeviceLine, addLog, startBatteryMonitoring, str2ab, ab2str, delay, onHeartRateUpdate, getCategoryByHeartRate, ensureAudioContext, loadCategoryTracks, switchMusicCategory, playTrackByIndex, toggleManualOverride, onManualCategoryChange, togglePlayPause, playNextTrack, playPrevTrack, ref: vue.ref, reactive: vue.reactive, onMounted: vue.onMounted, onUnmounted: vue.onUnmounted, computed: vue.computed };
+      }, initBluetooth, autoConnectDevice, scanDevices, connectToDevice, disconnect, handleReceivedData, parseDeviceLine, addLog, startBatteryMonitoring, str2ab, ab2str, delay, onHeartRateUpdate, getCategoryByHeartRate, ensureAudioContext, startMusicPlayTimer, stopMusicPlayTimer, toggleLike, uploadStatusInfo, loadCategoryTracks, switchMusicCategory, playTrackByIndex, toggleManualOverride, onManualCategoryChange, togglePlayPause, playNextTrack, playPrevTrack, ref: vue.ref, reactive: vue.reactive, onMounted: vue.onMounted, onUnmounted: vue.onUnmounted, computed: vue.computed, get saveConnectedDevice() {
+        return saveConnectedDevice;
+      }, get getLastConnectedDevice() {
+        return getLastConnectedDevice;
+      }, get uploadToServer() {
+        return uploadToServer;
+      }, get formatDataForLog() {
+        return formatDataForLog;
+      } };
       Object.defineProperty(__returned__, "__isScriptSetup", { enumerable: false, value: true });
       return __returned__;
     }
@@ -1829,6 +1986,23 @@ if (uni.restoreGlobal) {
         ]),
         $setup.isConnected ? (vue.openBlock(), vue.createElementBlock("view", {
           key: 0,
+          class: "watch-time"
+        }, [
+          vue.createElementVNode("view", { class: "time-header" }, [
+            vue.createElementVNode("text", { class: "time-title" }, "手表当前时间")
+          ]),
+          vue.createElementVNode("view", { class: "time-content" }, [
+            vue.createElementVNode(
+              "text",
+              { class: "time-value" },
+              vue.toDisplayString($setup.sensorData.time || "--"),
+              1
+              /* TEXT */
+            )
+          ])
+        ])) : vue.createCommentVNode("v-if", true),
+        $setup.isConnected ? (vue.openBlock(), vue.createElementBlock("view", {
+          key: 1,
           class: "sensor-data"
         }, [
           vue.createElementVNode("view", { class: "sensor-grid" }, [
@@ -1868,16 +2042,6 @@ if (uni.restoreGlobal) {
                 "text",
                 { class: "sensor-value" },
                 vue.toDisplayString($setup.sensorData.temperature ?? "--") + " °C",
-                1
-                /* TEXT */
-              )
-            ]),
-            vue.createElementVNode("view", { class: "sensor-item" }, [
-              vue.createElementVNode("text", { class: "sensor-label" }, "湿度"),
-              vue.createElementVNode(
-                "text",
-                { class: "sensor-value" },
-                vue.toDisplayString($setup.sensorData.humidity ?? "--") + " %",
                 1
                 /* TEXT */
               )
@@ -1922,6 +2086,21 @@ if (uni.restoreGlobal) {
                 )
               ]),
               vue.createElementVNode("view", { class: "music-controls" }, [
+                vue.createElementVNode("button", {
+                  class: "like-btn",
+                  onClick: $setup.toggleLike,
+                  disabled: !$setup.currentTrackName
+                }, [
+                  vue.createElementVNode(
+                    "text",
+                    {
+                      class: vue.normalizeClass(["like-icon", { liked: $setup.isLiked }])
+                    },
+                    vue.toDisplayString($setup.isLiked ? "❤️" : "🤍"),
+                    3
+                    /* TEXT, CLASS */
+                  )
+                ], 8, ["disabled"]),
                 vue.createElementVNode("button", {
                   class: "music-btn",
                   onClick: $setup.playPrevTrack,
@@ -1995,48 +2174,6 @@ if (uni.restoreGlobal) {
             ])
           ])
         ])) : vue.createCommentVNode("v-if", true)
-      ]),
-      vue.createElementVNode("view", { class: "bottom-section" }, [
-        vue.createElementVNode("view", { class: "input-container" }, [
-          vue.withDirectives(vue.createElementVNode(
-            "input",
-            {
-              class: "input-field",
-              "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => $setup.inputMessage = $event),
-              placeholder: "输入要发送的数据...",
-              "placeholder-class": "input-placeholder",
-              onConfirm: $setup.sendData
-            },
-            null,
-            544
-            /* NEED_HYDRATION, NEED_PATCH */
-          ), [
-            [vue.vModelText, $setup.inputMessage]
-          ]),
-          vue.createElementVNode("button", {
-            class: "send-btn",
-            onClick: $setup.sendData,
-            disabled: !$setup.isConnected || !$setup.inputMessage
-          }, " 发送 ", 8, ["disabled"])
-        ]),
-        vue.createElementVNode("view", { class: "quick-commands" }, [
-          vue.createElementVNode("text", { class: "commands-title" }, "快捷指令"),
-          vue.createElementVNode("view", { class: "command-buttons" }, [
-            (vue.openBlock(), vue.createElementBlock(
-              vue.Fragment,
-              null,
-              vue.renderList($setup.quickCommands, (cmd) => {
-                return vue.createElementVNode("button", {
-                  key: cmd.name,
-                  class: "cmd-btn",
-                  onClick: ($event) => $setup.sendQuickCommand(cmd)
-                }, vue.toDisplayString(cmd.name), 9, ["onClick"]);
-              }),
-              64
-              /* STABLE_FRAGMENT */
-            ))
-          ])
-        ])
       ])
     ]);
   }

@@ -154,12 +154,12 @@ const handleNext = () => {
 }
 
 .age-input {
-  font-size: 80rpx;
+  font-size: 60rpx;
   font-weight: bold;
   color: #ffffff;
   text-align: center;
-  width: 300rpx;
-  padding: 40rpx 0;
+  width: 400rpx;
+  padding: 50rpx 40rpx;
   background: rgba(255, 255, 255, 0.15);
   border-radius: 20rpx;
   backdrop-filter: blur(10px);
@@ -168,6 +168,7 @@ const handleNext = () => {
 
 .input-placeholder {
   color: rgba(255, 255, 255, 0.5);
+  font-size: 32rpx;
 }
 
 .input-unit {

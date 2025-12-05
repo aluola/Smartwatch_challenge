@@ -106,3 +106,4 @@ export function getUserField(fieldName, defaultValue = null) {
   return profile && profile[fieldName] !== undefined ? profile[fieldName] : defaultValue
 }
 
+

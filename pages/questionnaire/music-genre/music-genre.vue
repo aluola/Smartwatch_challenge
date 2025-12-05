@@ -42,7 +42,8 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { updateUserProfile, markQuestionnaireCompleted } from '../../../utils/userData'
+import { updateUserProfile, markQuestionnaireCompleted, getUserProfile } from '../../../utils/userData'
+import { uploadToServer, formatDataForLog } from '../../../utils/serverApi'
 
 const selectedGenres = ref([])
 const progress = 100 // 6/6
@@ -68,7 +69,7 @@ const toggleGenre = (value) => {
   }
 }
 
-const handleComplete = () => {
+const handleComplete = async () => {
   if (!canNext.value) {
     uni.showToast({
       title: '请至少选择一个音乐流派',
@@ -81,6 +82,22 @@ const handleComplete = () => {
   updateUserProfile({
     musicGenres: selectedGenres.value
   })
+  
+  // 获取完整的用户资料
+  const userProfile = getUserProfile()
+  
+  // 打印用户信息到控制台
+  console.log('========== 用户问卷信息 ==========')
+  console.log(formatDataForLog(userProfile))
+  console.log('================================')
+  
+  // 上传用户信息到服务器
+  try {
+    await uploadToServer(userProfile)
+    console.log('用户信息上传成功')
+  } catch (error) {
+    console.error('用户信息上传失败:', error)
+  }
   
   // 标记问卷已完成
   markQuestionnaireCompleted()
