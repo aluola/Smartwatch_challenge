@@ -43,7 +43,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { updateUserProfile, markQuestionnaireCompleted, getUserProfile } from '../../../utils/userData'
-import { uploadToServer, formatDataForLog } from '../../../utils/serverApi'
+import { uploadInitialInfo, formatDataForLog } from '../../../utils/serverApi'
 
 const selectedGenres = ref([])
 const progress = 100 // 6/6
@@ -93,7 +93,7 @@ const handleComplete = async () => {
   
   // 上传用户信息到服务器
   try {
-    await uploadToServer(userProfile)
+    await uploadInitialInfo(userProfile)
     console.log('用户信息上传成功')
   } catch (error) {
     console.error('用户信息上传失败:', error)
@@ -282,4 +282,3 @@ const handleComplete = async () => {
   }
 }
 </style>
-
