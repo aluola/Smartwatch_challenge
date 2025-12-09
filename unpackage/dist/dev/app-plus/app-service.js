@@ -991,7 +991,6 @@ if (uni.restoreGlobal) {
       const connectedDeviceName = vue.ref("");
       const discoveredDevices = vue.ref([]);
       let scanStopTimer = null;
-      let statusUploadTimer = null;
       const dataList = vue.ref([]);
       const sensorData = vue.reactive({
         heartRate: null,
@@ -1226,10 +1225,10 @@ if (uni.restoreGlobal) {
               fail: reject
             });
           });
-          formatAppLog("log", "at pages/index/index.vue:420", "蓝牙适配器初始化成功");
+          formatAppLog("log", "at pages/index/index.vue:419", "蓝牙适配器初始化成功");
           addLog("系统", "蓝牙适配器已就绪", "system");
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:423", "蓝牙初始化失败", error);
+          formatAppLog("error", "at pages/index/index.vue:422", "蓝牙初始化失败", error);
           uni.showToast({
             title: "蓝牙初始化失败",
             icon: "none"
@@ -1278,7 +1277,7 @@ if (uni.restoreGlobal) {
               scanning.value = false;
             }, 6e3);
           } catch (error) {
-            formatAppLog("error", "at pages/index/index.vue:487", "自动连接失败", error);
+            formatAppLog("error", "at pages/index/index.vue:486", "自动连接失败", error);
             scanning.value = false;
           }
         }, 1e3);
@@ -1295,7 +1294,7 @@ if (uni.restoreGlobal) {
               uni.openBluetoothAdapter({
                 success: resolve,
                 fail: (err) => {
-                  formatAppLog("error", "at pages/index/index.vue:508", "重新打开蓝牙适配器失败", err);
+                  formatAppLog("error", "at pages/index/index.vue:507", "重新打开蓝牙适配器失败", err);
                   resolve();
                 }
               });
@@ -1343,7 +1342,7 @@ if (uni.restoreGlobal) {
             }
           }, 6e3);
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:556", "扫描设备失败", error);
+          formatAppLog("error", "at pages/index/index.vue:555", "扫描设备失败", error);
           scanning.value = false;
           uni.showToast({
             title: "扫描失败",
@@ -1423,10 +1422,9 @@ if (uni.restoreGlobal) {
             title: "连接成功",
             icon: "success"
           });
-          startStatusUploadTimer();
           switchMusicCategory("mid");
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:654", "连接设备失败", error);
+          formatAppLog("error", "at pages/index/index.vue:651", "连接设备失败", error);
           uni.showToast({
             title: "连接失败",
             icon: "none"
@@ -1443,7 +1441,7 @@ if (uni.restoreGlobal) {
               });
             });
           } catch (error) {
-            formatAppLog("error", "at pages/index/index.vue:673", "断开连接失败", error);
+            formatAppLog("error", "at pages/index/index.vue:670", "断开连接失败", error);
           }
         }
         isConnected.value = false;
@@ -1453,7 +1451,6 @@ if (uni.restoreGlobal) {
         writeCharId = null;
         notifyServiceId = null;
         notifyCharId = null;
-        stopStatusUploadTimer();
         addLog("系统", "设备已断开");
         uni.showToast({
           title: "已断开",
@@ -1479,25 +1476,25 @@ if (uni.restoreGlobal) {
         var _a;
         if (line.startsWith("MUSIC:PLAY")) {
           if (!isPlaying.value) {
-            formatAppLog("log", "at pages/index/index.vue:732", "收到远程指令: 播放");
+            formatAppLog("log", "at pages/index/index.vue:727", "收到远程指令: 播放");
             togglePlayPause();
           }
           return;
         }
         if (line.startsWith("MUSIC:PAUSE")) {
           if (isPlaying.value) {
-            formatAppLog("log", "at pages/index/index.vue:742", "收到远程指令: 暂停");
+            formatAppLog("log", "at pages/index/index.vue:737", "收到远程指令: 暂停");
             togglePlayPause();
           }
           return;
         }
         if (line.startsWith("MUSIC:NEXT")) {
-          formatAppLog("log", "at pages/index/index.vue:750", "收到远程指令: 下一首");
+          formatAppLog("log", "at pages/index/index.vue:745", "收到远程指令: 下一首");
           playNextTrack();
           return;
         }
         if (line.startsWith("MUSIC:PREV")) {
-          formatAppLog("log", "at pages/index/index.vue:757", "收到远程指令: 上一首");
+          formatAppLog("log", "at pages/index/index.vue:752", "收到远程指令: 上一首");
           playPrevTrack();
           return;
         }
@@ -1507,7 +1504,6 @@ if (uni.restoreGlobal) {
           if (!isNaN(hr)) {
             sensorData.heartRate = hr;
             onHeartRateUpdate(hr);
-            uploadCurrentStatus();
           }
           return;
         }
@@ -1518,7 +1514,6 @@ if (uni.restoreGlobal) {
             if (!isNaN(hr)) {
               sensorData.heartRate = hr;
               onHeartRateUpdate(hr);
-              uploadCurrentStatus();
             }
           }
           return;
@@ -1535,7 +1530,6 @@ if (uni.restoreGlobal) {
           if (match) {
             sensorData.spo2 = match[1];
             sensorData.spo2 = sensorData.spo2.replace("%", "");
-            uploadCurrentStatus();
           }
           return;
         }
@@ -1543,7 +1537,6 @@ if (uni.restoreGlobal) {
           const match = line.match(/(\d+)/);
           if (match) {
             sensorData.steps = match[1];
-            uploadCurrentStatus();
           }
           return;
         }
@@ -1551,7 +1544,6 @@ if (uni.restoreGlobal) {
           const match = line.match(/(\d+(\.\d+)?)/);
           if (match) {
             sensorData.temperature = match[1];
-            uploadCurrentStatus();
           }
           return;
         }
@@ -1573,20 +1565,6 @@ if (uni.restoreGlobal) {
           batteryLevel.value = Math.max(10, batteryLevel.value - 0.1);
         }, 6e4);
       };
-      const startStatusUploadTimer = () => {
-        if (statusUploadTimer) {
-          clearInterval(statusUploadTimer);
-        }
-        statusUploadTimer = setInterval(() => {
-          uploadCurrentStatus();
-        }, 3e4);
-      };
-      const stopStatusUploadTimer = () => {
-        if (statusUploadTimer) {
-          clearInterval(statusUploadTimer);
-          statusUploadTimer = null;
-        }
-      };
       const uploadCurrentStatus = async () => {
         const statusData = {
           heartRate: sensorData.heartRate || "--",
@@ -1598,14 +1576,14 @@ if (uni.restoreGlobal) {
           musicPlayTime: musicPlayTime.value,
           isLiked: isLiked.value ? "是" : "否"
         };
-        formatAppLog("log", "at pages/index/index.vue:895", "========== 用户状态信息 ==========");
-        formatAppLog("log", "at pages/index/index.vue:896", formatDataForLog(statusData));
-        formatAppLog("log", "at pages/index/index.vue:897", "================================");
+        formatAppLog("log", "at pages/index/index.vue:860", "========== 用户状态信息 ==========");
+        formatAppLog("log", "at pages/index/index.vue:861", formatDataForLog(statusData));
+        formatAppLog("log", "at pages/index/index.vue:862", "================================");
         try {
           await uploadStatusInfo(statusData);
-          formatAppLog("log", "at pages/index/index.vue:902", "状态信息上传成功");
+          formatAppLog("log", "at pages/index/index.vue:867", "状态信息上传成功");
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:904", "状态信息上传失败:", error);
+          formatAppLog("error", "at pages/index/index.vue:869", "状态信息上传失败:", error);
         }
       };
       const str2ab = (str) => {
@@ -1702,7 +1680,7 @@ if (uni.restoreGlobal) {
             musicPlayTime.value = 0;
           });
           audioCtx.onError((err) => {
-            formatAppLog("error", "at pages/index/index.vue:1017", "音乐播放错误", err);
+            formatAppLog("error", "at pages/index/index.vue:982", "音乐播放错误", err);
             addLog("系统", "音乐播放出错");
             isPlaying.value = false;
             stopMusicPlayTimer();
@@ -1725,10 +1703,11 @@ if (uni.restoreGlobal) {
         }
         musicStartTime = null;
       };
-      const toggleLike = () => {
+      const toggleLike = async () => {
         if (!currentTrackName.value)
           return;
         isLiked.value = !isLiked.value;
+        await uploadCurrentStatus();
       };
       const uploadStatusInfoOld = async () => {
         const statusData = {
@@ -1741,14 +1720,14 @@ if (uni.restoreGlobal) {
           musicPlayTime: musicPlayTime.value,
           isLiked: isLiked.value ? "是" : "否"
         };
-        formatAppLog("log", "at pages/index/index.vue:1065", "========== 用户状态信息 ==========");
-        formatAppLog("log", "at pages/index/index.vue:1066", formatDataForLog(statusData));
-        formatAppLog("log", "at pages/index/index.vue:1067", "================================");
+        formatAppLog("log", "at pages/index/index.vue:1032", "========== 用户状态信息 ==========");
+        formatAppLog("log", "at pages/index/index.vue:1033", formatDataForLog(statusData));
+        formatAppLog("log", "at pages/index/index.vue:1034", "================================");
         try {
           await uploadToServer(statusData);
-          formatAppLog("log", "at pages/index/index.vue:1072", "状态信息上传成功");
+          formatAppLog("log", "at pages/index/index.vue:1039", "状态信息上传成功");
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:1074", "状态信息上传失败:", error);
+          formatAppLog("error", "at pages/index/index.vue:1041", "状态信息上传失败:", error);
         }
       };
       const loadCategoryTracks = (category) => {
@@ -1758,9 +1737,9 @@ if (uni.restoreGlobal) {
           if (tracks.length > 0) {
             cfg.tracks = tracks;
             cfg.loaded = true;
-            formatAppLog("log", "at pages/index/index.vue:1089", `分类 ${category} 加载了 ${tracks.length} 首歌曲`);
+            formatAppLog("log", "at pages/index/index.vue:1056", `分类 ${category} 加载了 ${tracks.length} 首歌曲`);
           } else {
-            formatAppLog("warn", "at pages/index/index.vue:1091", `分类 ${category} 没有定义歌曲`);
+            formatAppLog("warn", "at pages/index/index.vue:1058", `分类 ${category} 没有定义歌曲`);
             addLog("系统", `分类 ${category} 暂无歌曲配置`);
           }
           resolve();
@@ -1809,7 +1788,7 @@ if (uni.restoreGlobal) {
         musicPlayTime.value = 0;
         isLiked.value = false;
         const fullPath = cfg.folder + track.file;
-        formatAppLog("log", "at pages/index/index.vue:1153", "准备播放:", fullPath);
+        formatAppLog("log", "at pages/index/index.vue:1120", "准备播放:", fullPath);
         audioCtx.src = fullPath;
         audioCtx.play();
         isPlaying.value = true;
@@ -1877,10 +1856,6 @@ if (uni.restoreGlobal) {
         return scanStopTimer;
       }, set scanStopTimer(v) {
         scanStopTimer = v;
-      }, get statusUploadTimer() {
-        return statusUploadTimer;
-      }, set statusUploadTimer(v) {
-        statusUploadTimer = v;
       }, dataList, sensorData, HR_TOLERANCE, CATEGORY_SWITCH_DELAY, currentHeartRate, currentMusicCategory, manualOverride, manualCategory, isPlaying, currentTrackName, isLiked, musicPlayTime, get musicPlayTimer() {
         return musicPlayTimer;
       }, set musicPlayTimer(v) {
@@ -1929,7 +1904,7 @@ if (uni.restoreGlobal) {
         return receiveBuffer;
       }, set receiveBuffer(v) {
         receiveBuffer = v;
-      }, initBluetooth, autoConnectDevice, scanDevices, connectToDevice, disconnect, handleReceivedData, parseDeviceLine, addLog, startBatteryMonitoring, startStatusUploadTimer, stopStatusUploadTimer, uploadCurrentStatus, str2ab, ab2str, delay, onHeartRateUpdate, getCategoryByHeartRate, ensureAudioContext, startMusicPlayTimer, stopMusicPlayTimer, toggleLike, uploadStatusInfoOld, loadCategoryTracks, switchMusicCategory, playTrackByIndex, toggleManualOverride, onManualCategoryChange, togglePlayPause, playNextTrack, playPrevTrack, ref: vue.ref, reactive: vue.reactive, onMounted: vue.onMounted, onUnmounted: vue.onUnmounted, computed: vue.computed, get saveConnectedDevice() {
+      }, initBluetooth, autoConnectDevice, scanDevices, connectToDevice, disconnect, handleReceivedData, parseDeviceLine, addLog, startBatteryMonitoring, uploadCurrentStatus, str2ab, ab2str, delay, onHeartRateUpdate, getCategoryByHeartRate, ensureAudioContext, startMusicPlayTimer, stopMusicPlayTimer, toggleLike, uploadStatusInfoOld, loadCategoryTracks, switchMusicCategory, playTrackByIndex, toggleManualOverride, onManualCategoryChange, togglePlayPause, playNextTrack, playPrevTrack, ref: vue.ref, reactive: vue.reactive, onMounted: vue.onMounted, onUnmounted: vue.onUnmounted, computed: vue.computed, get saveConnectedDevice() {
         return saveConnectedDevice;
       }, get getLastConnectedDevice() {
         return getLastConnectedDevice;

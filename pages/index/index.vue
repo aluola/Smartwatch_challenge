@@ -148,7 +148,6 @@ const batteryLevel = ref(100)
 const connectedDeviceName = ref('')
 const discoveredDevices = ref([])
 let scanStopTimer = null
-let statusUploadTimer = null
 
 // 数据列表
 const dataList = ref([])
@@ -645,8 +644,6 @@ const connectToDevice = async (device) => {
       title: '连接成功',
       icon: 'success'
     })
-    // 启动状态信息定期上传
-    startStatusUploadTimer()
     // 默认播放一段中速节奏音乐，作为正常心率的背景
     switchMusicCategory('mid')
     
@@ -681,8 +678,6 @@ const disconnect = async () => {
   writeCharId = null
   notifyServiceId = null
   notifyCharId = null
-  // 停止状态信息定期上传
-  stopStatusUploadTimer()
   addLog('系统', '设备已断开', 'system')
   uni.showToast({
     title: '已断开',
@@ -761,15 +756,13 @@ const parseDeviceLine = (line) => {
 
   // --- 2. 传感器数据解析区域 (保持原有逻辑) ---
 
-  // 心率
+    // 心率
   if (line.startsWith('HR:')) {
     const hrStr = line.split(':')[1]
     const hr = parseInt(hrStr, 10)
     if (!isNaN(hr)) {
       sensorData.heartRate = hr
       onHeartRateUpdate(hr)
-      // 心率数据更新时触发上传
-      uploadCurrentStatus()
     }
     return
   }
@@ -782,8 +775,6 @@ const parseDeviceLine = (line) => {
       if (!isNaN(hr)) {
         sensorData.heartRate = hr
         onHeartRateUpdate(hr)
-        // 心率数据更新时触发上传
-        uploadCurrentStatus()
       }
     }
     return
@@ -805,8 +796,6 @@ const parseDeviceLine = (line) => {
       sensorData.spo2 = match[1]
       // 某些设备可能发送 SPO2:99%
       sensorData.spo2 = sensorData.spo2.replace('%', '') 
-      // 血氧数据更新时触发上传
-      uploadCurrentStatus()
     }
     return
   }
@@ -816,8 +805,6 @@ const parseDeviceLine = (line) => {
     const match = line.match(/(\d+)/)
     if (match) {
       sensorData.steps = match[1]
-      // 步数数据更新时触发上传
-      uploadCurrentStatus()
     }
     return
   }
@@ -827,8 +814,6 @@ const parseDeviceLine = (line) => {
     const match = line.match(/(\d+(\.\d+)?)/)
     if (match) {
       sensorData.temperature = match[1]
-      // 温度数据更新时触发上传
-      uploadCurrentStatus()
     }
     return
   }
@@ -856,26 +841,6 @@ const startBatteryMonitoring = () => {
   setInterval(() => {
     batteryLevel.value = Math.max(10, batteryLevel.value - 0.1)
   }, 60000)
-}
-
-// 启动状态信息定期上传（每30秒）
-const startStatusUploadTimer = () => {
-  // 清除之前的定时器（如果存在）
-  if (statusUploadTimer) {
-    clearInterval(statusUploadTimer)
-  }
-  // 设置新的定时器，每30秒上传一次状态信息
-  statusUploadTimer = setInterval(() => {
-    uploadCurrentStatus()
-  }, 30000)
-}
-
-// 停止状态信息定期上传
-const stopStatusUploadTimer = () => {
-  if (statusUploadTimer) {
-    clearInterval(statusUploadTimer)
-    statusUploadTimer = null
-  }
 }
 
 // 上传当前状态信息到服务器
@@ -1043,9 +1008,11 @@ const stopMusicPlayTimer = () => {
 }
 
 // 切换喜欢状态
-const toggleLike = () => {
+const toggleLike = async () => {
   if (!currentTrackName.value) return
   isLiked.value = !isLiked.value
+  // 喜欢/取消喜欢时上传状态信息
+  await uploadCurrentStatus()
 }
 
 // 上传状态信息到服务器（旧函数，已替换为uploadCurrentStatus）
