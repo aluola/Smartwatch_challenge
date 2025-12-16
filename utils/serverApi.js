@@ -2,7 +2,7 @@
  * 服务器通信工具
  */
 
-const SERVER_IP = '39.107.190.29'
+const SERVER_IP = '47.93.210.224'
 const SERVER_URL = `http://${SERVER_IP}/calculate`
 
 /**

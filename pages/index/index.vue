@@ -73,6 +73,10 @@
             <text class="sensor-value">{{ sensorData.steps ?? '--' }}</text>
           </view>
           <view class="sensor-item">
+            <text class="sensor-label">步频</text>
+            <text class="sensor-value">{{ sensorData.cadence ?? '--' }} 步/分钟</text>
+          </view>
+          <view class="sensor-item">
             <text class="sensor-label">温度</text>
             <text class="sensor-value">{{ sensorData.temperature ?? '--' }} °C</text>
           </view>
@@ -148,7 +152,11 @@ const batteryLevel = ref(100)
 const connectedDeviceName = ref('')
 const discoveredDevices = ref([])
 let scanStopTimer = null
-let statusUploadTimer = null
+
+// 步频计算相关
+const stepHistory = ref([]) // 存储最近5秒内的步数记录 [{timestamp: number, steps: number}]
+const CADENCE_TIME_WINDOW = 5000 // 步频计算的时间窗口（毫秒）
+let cadenceUpdateTimer = null
 
 // 数据列表
 const dataList = ref([])
@@ -159,7 +167,8 @@ const sensorData = reactive({
   spo2: null,
   steps: null,
   temperature: null,
-  time: null
+  time: null,
+  cadence: null // 步频（步/分钟）
 })
 
 // 心率与音乐映射
@@ -645,8 +654,6 @@ const connectToDevice = async (device) => {
       title: '连接成功',
       icon: 'success'
     })
-    // 启动状态信息定期上传
-    startStatusUploadTimer()
     // 默认播放一段中速节奏音乐，作为正常心率的背景
     switchMusicCategory('mid')
     
@@ -681,8 +688,10 @@ const disconnect = async () => {
   writeCharId = null
   notifyServiceId = null
   notifyCharId = null
-  // 停止状态信息定期上传
-  stopStatusUploadTimer()
+  // 清空步数历史记录
+  stepHistory.value = []
+  // 重置步频数据
+  sensorData.cadence = null
   addLog('系统', '设备已断开', 'system')
   uni.showToast({
     title: '已断开',
@@ -761,15 +770,13 @@ const parseDeviceLine = (line) => {
 
   // --- 2. 传感器数据解析区域 (保持原有逻辑) ---
 
-  // 心率
+    // 心率
   if (line.startsWith('HR:')) {
     const hrStr = line.split(':')[1]
     const hr = parseInt(hrStr, 10)
     if (!isNaN(hr)) {
       sensorData.heartRate = hr
       onHeartRateUpdate(hr)
-      // 心率数据更新时触发上传
-      uploadCurrentStatus()
     }
     return
   }
@@ -782,8 +789,6 @@ const parseDeviceLine = (line) => {
       if (!isNaN(hr)) {
         sensorData.heartRate = hr
         onHeartRateUpdate(hr)
-        // 心率数据更新时触发上传
-        uploadCurrentStatus()
       }
     }
     return
@@ -805,8 +810,6 @@ const parseDeviceLine = (line) => {
       sensorData.spo2 = match[1]
       // 某些设备可能发送 SPO2:99%
       sensorData.spo2 = sensorData.spo2.replace('%', '') 
-      // 血氧数据更新时触发上传
-      uploadCurrentStatus()
     }
     return
   }
@@ -815,9 +818,12 @@ const parseDeviceLine = (line) => {
   if (/STEPS/i.test(line) || /Step\s+today/i.test(line)) {
     const match = line.match(/(\d+)/)
     if (match) {
-      sensorData.steps = match[1]
-      // 步数数据更新时触发上传
-      uploadCurrentStatus()
+      const newSteps = parseInt(match[1], 10)
+      if (!isNaN(newSteps)) {
+        sensorData.steps = newSteps
+        // 更新步数历史记录并计算步频
+        updateStepHistory(newSteps)
+      }
     }
     return
   }
@@ -827,8 +833,6 @@ const parseDeviceLine = (line) => {
     const match = line.match(/(\d+(\.\d+)?)/)
     if (match) {
       sensorData.temperature = match[1]
-      // 温度数据更新时触发上传
-      uploadCurrentStatus()
     }
     return
   }
@@ -858,24 +862,45 @@ const startBatteryMonitoring = () => {
   }, 60000)
 }
 
-// 启动状态信息定期上传（每30秒）
-const startStatusUploadTimer = () => {
-  // 清除之前的定时器（如果存在）
-  if (statusUploadTimer) {
-    clearInterval(statusUploadTimer)
-  }
-  // 设置新的定时器，每30秒上传一次状态信息
-  statusUploadTimer = setInterval(() => {
-    uploadCurrentStatus()
-  }, 30000)
+// 更新步数历史记录并计算步频
+const updateStepHistory = (steps) => {
+  const now = Date.now()
+  
+  // 添加新的步数记录
+  stepHistory.value.push({ timestamp: now, steps })
+  
+  // 移除超过5秒时间窗口的记录
+  const cutoffTime = now - CADENCE_TIME_WINDOW
+  stepHistory.value = stepHistory.value.filter(item => item.timestamp >= cutoffTime)
+  
+  // 计算步频
+  calculateCadence()
 }
 
-// 停止状态信息定期上传
-const stopStatusUploadTimer = () => {
-  if (statusUploadTimer) {
-    clearInterval(statusUploadTimer)
-    statusUploadTimer = null
+// 计算步频（步/分钟）
+const calculateCadence = () => {
+  if (stepHistory.value.length < 2) {
+    // 数据不足，无法计算步频
+    return
   }
+  
+  const firstRecord = stepHistory.value[0]
+  const lastRecord = stepHistory.value[stepHistory.value.length - 1]
+  const timeDiff = lastRecord.timestamp - firstRecord.timestamp // 毫秒
+  const stepDiff = lastRecord.steps - firstRecord.steps
+  
+  if (timeDiff <= 0 || stepDiff <= 0) {
+    // 时间差或步数差无效
+    return
+  }
+  
+  // 计算步频：(步数差 / 时间差) * 60000毫秒 = 步/分钟
+  // 或简化为：(步数差 * 60) / (时间差 / 1000) = 步/分钟
+  const cadence = Math.round((stepDiff * 60000) / timeDiff)
+  sensorData.cadence = cadence
+  
+  // 打印步频信息（调试用）
+  console.log(`步频计算：${stepDiff}步 / ${timeDiff/1000}秒 = ${cadence}步/分钟`)
 }
 
 // 上传当前状态信息到服务器
@@ -884,6 +909,7 @@ const uploadCurrentStatus = async () => {
     heartRate: sensorData.heartRate || '--',
     spo2: sensorData.spo2 || '--',
     steps: sensorData.steps || '--',
+    cadence: sensorData.cadence || '--', // 添加步频数据
     temperature: sensorData.temperature || '--',
     currentTrackName: currentTrackName.value || '未选择',
     musicCategory: currentMusicCategoryLabel.value,
@@ -1043,9 +1069,11 @@ const stopMusicPlayTimer = () => {
 }
 
 // 切换喜欢状态
-const toggleLike = () => {
+const toggleLike = async () => {
   if (!currentTrackName.value) return
   isLiked.value = !isLiked.value
+  // 喜欢/取消喜欢时上传状态信息
+  await uploadCurrentStatus()
 }
 
 // 上传状态信息到服务器（旧函数，已替换为uploadCurrentStatus）

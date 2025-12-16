@@ -2,7 +2,7 @@ import requests
 
 # 替换为你服务器的公网 IP
 # 注意：因为用了 80 端口，这里不需要写 :8000 了
-SERVER_IP = "39.107.190.29" 
+SERVER_IP = "47.93.210.224" 
 URL = f"http://{SERVER_IP}/calculate"
 
 def main():
