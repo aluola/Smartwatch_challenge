@@ -152,11 +152,14 @@ const batteryLevel = ref(100)
 const connectedDeviceName = ref('')
 const discoveredDevices = ref([])
 let scanStopTimer = null
+<<<<<<< HEAD
 
 // 步频计算相关
 const stepHistory = ref([]) // 存储最近5秒内的步数记录 [{timestamp: number, steps: number}]
 const CADENCE_TIME_WINDOW = 5000 // 步频计算的时间窗口（毫秒）
 let cadenceUpdateTimer = null
+=======
+>>>>>>> 46759be6cfa9bc7c24047878629ebe0bbf27e5a4
 
 // 数据列表
 const dataList = ref([])
@@ -688,10 +691,13 @@ const disconnect = async () => {
   writeCharId = null
   notifyServiceId = null
   notifyCharId = null
+<<<<<<< HEAD
   // 清空步数历史记录
   stepHistory.value = []
   // 重置步频数据
   sensorData.cadence = null
+=======
+>>>>>>> 46759be6cfa9bc7c24047878629ebe0bbf27e5a4
   addLog('系统', '设备已断开', 'system')
   uni.showToast({
     title: '已断开',
@@ -818,12 +824,16 @@ const parseDeviceLine = (line) => {
   if (/STEPS/i.test(line) || /Step\s+today/i.test(line)) {
     const match = line.match(/(\d+)/)
     if (match) {
+<<<<<<< HEAD
       const newSteps = parseInt(match[1], 10)
       if (!isNaN(newSteps)) {
         sensorData.steps = newSteps
         // 更新步数历史记录并计算步频
         updateStepHistory(newSteps)
       }
+=======
+      sensorData.steps = match[1]
+>>>>>>> 46759be6cfa9bc7c24047878629ebe0bbf27e5a4
     }
     return
   }
@@ -862,6 +872,7 @@ const startBatteryMonitoring = () => {
   }, 60000)
 }
 
+<<<<<<< HEAD
 // 更新步数历史记录并计算步频
 const updateStepHistory = (steps) => {
   const now = Date.now()
@@ -903,6 +914,8 @@ const calculateCadence = () => {
   console.log(`步频计算：${stepDiff}步 / ${timeDiff/1000}秒 = ${cadence}步/分钟`)
 }
 
+=======
+>>>>>>> 46759be6cfa9bc7c24047878629ebe0bbf27e5a4
 // 上传当前状态信息到服务器
 const uploadCurrentStatus = async () => {
   const statusData = {
