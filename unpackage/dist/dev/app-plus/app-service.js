@@ -802,7 +802,8 @@ if (uni.restoreGlobal) {
     return await sendWithAck(0, initialData);
   }
   async function uploadStatusInfo(statusData) {
-    return await sendWithAck(1, statusData);
+    const response = await sendWithAck(1, statusData);
+    return response;
   }
   function formatDataForLog(data) {
     const lines = [];
@@ -980,8 +981,8 @@ if (uni.restoreGlobal) {
     }
   }
   const CADENCE_TIME_WINDOW = 5e3;
-  const HR_TOLERANCE = 3;
-  const CATEGORY_SWITCH_DELAY = 3e4;
+  const MUSIC_FOLDER = "/static/music_new/music/";
+  const DEFAULT_TRACK = "010377.mp3";
   const _sfc_main$1 = {
     __name: "index",
     setup(__props, { expose: __expose }) {
@@ -1004,209 +1005,15 @@ if (uni.restoreGlobal) {
         cadence: null
         // 步频（步/分钟）
       });
-      const currentHeartRate = vue.ref(null);
-      const currentMusicCategory = vue.ref("none");
-      const manualOverride = vue.ref(false);
-      const manualCategory = vue.ref("slow");
       const isPlaying = vue.ref(false);
       const currentTrackName = vue.ref("");
       const isLiked = vue.ref(false);
       const musicPlayTime = vue.ref(0);
       let musicPlayTimer = null;
       let musicStartTime = null;
-      let lastHeartRate = null;
-      let pendingCategory = null;
-      let pendingStartTime = null;
-      const hrThresholds = vue.reactive({
-        slow: { min: 60, max: 80 },
-        mid: { min: 80, max: 96 },
-        midfast: { min: 96, max: 120 },
-        fast: { min: 120, max: 144 },
-        veryfast: { min: 144, max: 999 }
-      });
-      const musicDatabase = {
-        slow: [
-          { file: "slow_song_1.mp3", bpm: 65 }
-        ],
-        mid: [
-          { file: "mid_song_1.mp3", bpm: 80 },
-          { file: "mid_song_2.mp3", bpm: 81 },
-          { file: "mid_song_3.mp3", bpm: 82 },
-          { file: "mid_song_4.mp3", bpm: 83 },
-          { file: "mid_song_5.mp3", bpm: 84 },
-          { file: "mid_song_6.mp3", bpm: 85 },
-          { file: "mid_song_7.mp3", bpm: 86 },
-          { file: "mid_song_8.mp3", bpm: 87 },
-          { file: "mid_song_9.mp3", bpm: 88 },
-          { file: "mid_song_10.mp3", bpm: 89 },
-          { file: "mid_song_11.mp3", bpm: 90 },
-          { file: "mid_song_12.mp3", bpm: 91 },
-          { file: "mid_song_13.mp3", bpm: 92 },
-          { file: "mid_song_14.mp3", bpm: 93 },
-          { file: "mid_song_15.mp3", bpm: 94 },
-          { file: "mid_song_16.mp3", bpm: 95 },
-          { file: "mid_song_17.mp3", bpm: 96 },
-          { file: "mid_song_18.mp3", bpm: 97 },
-          { file: "mid_song_19.mp3", bpm: 98 },
-          { file: "mid_song_20.mp3", bpm: 99 },
-          { file: "mid_song_21.mp3", bpm: 99 },
-          { file: "mid_song_22.mp3", bpm: 90 },
-          { file: "mid_song_23.mp3", bpm: 90 },
-          { file: "mid_song_24.mp3", bpm: 90 },
-          { file: "mid_song_25.mp3", bpm: 90 },
-          { file: "mid_song_26.mp3", bpm: 90 },
-          { file: "mid_song_27.mp3", bpm: 90 },
-          { file: "mid_song_28.mp3", bpm: 90 },
-          { file: "mid_song_29.mp3", bpm: 90 },
-          { file: "mid_song_30.mp3", bpm: 90 }
-        ],
-        midfast: [
-          { file: "midfast_song_1.mp3", bpm: 100 },
-          { file: "midfast_song_2.mp3", bpm: 101 },
-          { file: "midfast_song_3.mp3", bpm: 102 },
-          { file: "midfast_song_4.mp3", bpm: 103 },
-          { file: "midfast_song_5.mp3", bpm: 104 },
-          { file: "midfast_song_6.mp3", bpm: 105 },
-          { file: "midfast_song_7.mp3", bpm: 106 },
-          { file: "midfast_song_8.mp3", bpm: 107 },
-          { file: "midfast_song_9.mp3", bpm: 108 },
-          { file: "midfast_song_10.mp3", bpm: 109 },
-          { file: "midfast_song_11.mp3", bpm: 110 },
-          { file: "midfast_song_12.mp3", bpm: 111 },
-          { file: "midfast_song_13.mp3", bpm: 112 },
-          { file: "midfast_song_14.mp3", bpm: 113 },
-          { file: "midfast_song_15.mp3", bpm: 114 },
-          { file: "midfast_song_16.mp3", bpm: 115 },
-          { file: "midfast_song_17.mp3", bpm: 116 },
-          { file: "midfast_song_18.mp3", bpm: 117 },
-          { file: "midfast_song_19.mp3", bpm: 118 },
-          { file: "midfast_song_20.mp3", bpm: 119 },
-          { file: "midfast_song_21.mp3", bpm: 119 },
-          { file: "midfast_song_22.mp3", bpm: 119 },
-          { file: "midfast_song_23.mp3", bpm: 119 },
-          { file: "midfast_song_24.mp3", bpm: 119 },
-          { file: "midfast_song_25.mp3", bpm: 119 },
-          { file: "midfast_song_26.mp3", bpm: 119 }
-        ],
-        fast: [
-          { file: "fast_song_1.mp3", bpm: 120 },
-          { file: "fast_song_2.mp3", bpm: 121 },
-          { file: "fast_song_3.mp3", bpm: 122 },
-          { file: "fast_song_4.mp3", bpm: 123 },
-          { file: "fast_song_5.mp3", bpm: 124 },
-          { file: "fast_song_6.mp3", bpm: 125 },
-          { file: "fast_song_7.mp3", bpm: 126 },
-          { file: "fast_song_8.mp3", bpm: 127 },
-          { file: "fast_song_9.mp3", bpm: 128 },
-          { file: "fast_song_10.mp3", bpm: 129 },
-          { file: "fast_song_11.mp3", bpm: 130 },
-          { file: "fast_song_12.mp3", bpm: 131 },
-          { file: "fast_song_13.mp3", bpm: 132 },
-          { file: "fast_song_14.mp3", bpm: 133 },
-          { file: "fast_song_15.mp3", bpm: 134 },
-          { file: "fast_song_16.mp3", bpm: 135 }
-        ],
-        veryfast: [
-          { file: "veryfast_song_1.mp3", bpm: 140 },
-          { file: "veryfast_song_2.mp3", bpm: 141 },
-          { file: "veryfast_song_3.mp3", bpm: 142 },
-          { file: "veryfast_song_4.mp3", bpm: 143 },
-          { file: "veryfast_song_5.mp3", bpm: 144 },
-          { file: "veryfast_song_6.mp3", bpm: 145 },
-          { file: "veryfast_song_7.mp3", bpm: 146 },
-          { file: "veryfast_song_8.mp3", bpm: 147 },
-          { file: "veryfast_song_9.mp3", bpm: 148 },
-          { file: "veryfast_song_10.mp3", bpm: 149 },
-          { file: "veryfast_song_11.mp3", bpm: 150 },
-          { file: "veryfast_song_12.mp3", bpm: 151 },
-          { file: "veryfast_song_13.mp3", bpm: 152 },
-          { file: "veryfast_song_14.mp3", bpm: 153 },
-          { file: "veryfast_song_15.mp3", bpm: 154 },
-          { file: "veryfast_song_16.mp3", bpm: 155 },
-          { file: "veryfast_song_17.mp3", bpm: 156 },
-          { file: "veryfast_song_18.mp3", bpm: 157 },
-          { file: "veryfast_song_19.mp3", bpm: 158 },
-          { file: "veryfast_song_20.mp3", bpm: 159 },
-          { file: "veryfast_song_21.mp3", bpm: 160 },
-          { file: "veryfast_song_22.mp3", bpm: 161 },
-          { file: "veryfast_song_23.mp3", bpm: 162 },
-          { file: "veryfast_song_24.mp3", bpm: 163 },
-          { file: "veryfast_song_25.mp3", bpm: 164 },
-          { file: "veryfast_song_26.mp3", bpm: 165 },
-          { file: "veryfast_song_27.mp3", bpm: 166 },
-          { file: "veryfast_song_28.mp3", bpm: 167 }
-        ]
-      };
-      const musicLibrary = vue.reactive({
-        slow: {
-          folder: "/static/Music/000-079_BPM_slow/",
-          tracks: [],
-          loaded: false,
-          currentIndex: -1
-        },
-        mid: {
-          folder: "/static/Music/080-099_BPM_mid/",
-          tracks: [],
-          loaded: false,
-          currentIndex: -1
-        },
-        midfast: {
-          folder: "/static/Music/100-119_BPM_midfast/",
-          tracks: [],
-          loaded: false,
-          currentIndex: -1
-        },
-        fast: {
-          folder: "/static/Music/120-139_BPM_fast/",
-          tracks: [],
-          loaded: false,
-          currentIndex: -1
-        },
-        veryfast: {
-          folder: "/static/Music/140+_BPM_veryfast/",
-          tracks: [],
-          loaded: false,
-          currentIndex: -1
-        }
-      });
+      const trackList = vue.ref([]);
+      const currentTrackIndex = vue.ref(-1);
       let audioCtx = null;
-      const musicCategoryOptions = [
-        { value: "slow", label: "慢速 slow" },
-        { value: "mid", label: "中速 mid" },
-        { value: "midfast", label: "中快 midfast" },
-        { value: "fast", label: "快速 fast" },
-        { value: "veryfast", label: "超快 veryfast" }
-      ];
-      const thresholdDisplayList = vue.computed(() => [
-        { key: "slow", label: "Slow", rangeText: `${hrThresholds.slow.min}-${hrThresholds.slow.max}` },
-        { key: "mid", label: "Mid", rangeText: `${hrThresholds.mid.min}-${hrThresholds.mid.max}` },
-        { key: "midfast", label: "Mid-fast", rangeText: `${hrThresholds.midfast.min}-${hrThresholds.midfast.max}` },
-        { key: "fast", label: "Fast", rangeText: `${hrThresholds.fast.min}-${hrThresholds.fast.max}` },
-        { key: "veryfast", label: "Very fast", rangeText: `${hrThresholds.veryfast.min}+` }
-      ]);
-      const currentMusicCategoryLabel = vue.computed(() => {
-        const map = {
-          none: "未播放",
-          slow: "慢速 slow",
-          mid: "中速 mid",
-          midfast: "中快 midfast",
-          fast: "快速 fast",
-          veryfast: "超快 veryfast"
-        };
-        return map[currentMusicCategory.value] || "未播放";
-      });
-      const manualCategoryLabel = vue.computed(() => {
-        const found = musicCategoryOptions.find((i) => i.value === manualCategory.value);
-        return found ? found.label : "请选择";
-      });
-      const canControlTrack = vue.computed(() => {
-        const cfg = musicLibrary[currentMusicCategory.value];
-        return !!(cfg && cfg.tracks && cfg.tracks.length > 0 && cfg.currentIndex >= 0);
-      });
-      const canStartPlay = vue.computed(() => {
-        const cfg = musicLibrary[currentMusicCategory.value];
-        return !!(cfg && cfg.tracks && cfg.tracks.length > 0);
-      });
       let bluetoothDevice = null;
       let writeServiceId = null;
       let writeCharId = null;
@@ -1216,7 +1023,131 @@ if (uni.restoreGlobal) {
       vue.onMounted(() => {
         initBluetooth();
         startBatteryMonitoring();
-        autoConnectDevice();
+        setTimeout(() => {
+          try {
+            loadDefaultTrack();
+          } catch (error) {
+            formatAppLog("error", "at pages/index/index.vue:178", "初始化默认歌曲失败:", error);
+          }
+        }, 1e3);
+      });
+      const loadTrackList = async () => {
+        try {
+          return new Promise((resolve) => {
+            const fs = uni.getFileSystemManager();
+            const possiblePaths = [
+              "_www/static/music_new/music_list.json",
+              "static/music_new/music_list.json",
+              "/static/music_new/music_list.json"
+            ];
+            const tryReadFile = (pathIndex) => {
+              if (pathIndex >= possiblePaths.length) {
+                formatAppLog("error", "at pages/index/index.vue:201", "所有路径都无法读取歌曲列表文件，尝试使用HTTP请求");
+                uni.request({
+                  url: "http://localhost:8080/static/music_new/music_list.json",
+                  method: "GET",
+                  success: (res) => {
+                    if (res.statusCode === 200 && Array.isArray(res.data)) {
+                      trackList.value = res.data.sort();
+                      formatAppLog("log", "at pages/index/index.vue:209", `成功通过HTTP加载 ${trackList.value.length} 首歌曲`);
+                      resolve(true);
+                    } else {
+                      formatAppLog("error", "at pages/index/index.vue:212", "HTTP请求返回格式不正确");
+                      resolve(false);
+                    }
+                  },
+                  fail: () => {
+                    formatAppLog("error", "at pages/index/index.vue:217", "所有方法都无法加载歌曲列表");
+                    resolve(false);
+                  }
+                });
+                return;
+              }
+              const path = possiblePaths[pathIndex];
+              fs.readFile({
+                filePath: path,
+                encoding: "utf8",
+                success: (res) => {
+                  try {
+                    const data = JSON.parse(res.data);
+                    if (Array.isArray(data)) {
+                      trackList.value = data.sort();
+                      formatAppLog("log", "at pages/index/index.vue:233", `成功加载 ${trackList.value.length} 首歌曲 (使用路径: ${path})`);
+                      resolve(true);
+                    } else {
+                      formatAppLog("error", "at pages/index/index.vue:236", "JSON格式不正确");
+                      tryReadFile(pathIndex + 1);
+                    }
+                  } catch (parseErr) {
+                    formatAppLog("error", "at pages/index/index.vue:240", "JSON解析失败:", parseErr);
+                    tryReadFile(pathIndex + 1);
+                  }
+                },
+                fail: (err) => {
+                  formatAppLog("log", "at pages/index/index.vue:245", `路径 ${path} 读取失败，尝试下一个路径:`, err.errMsg || err);
+                  tryReadFile(pathIndex + 1);
+                }
+              });
+            };
+            tryReadFile(0);
+          });
+          formatAppLog("warn", "at pages/index/index.vue:282", "未识别的平台，尝试使用uni.request");
+          try {
+            const res = await new Promise((resolve, reject) => {
+              uni.request({
+                url: "/static/music_new/music_list.json",
+                method: "GET",
+                success: resolve,
+                fail: reject
+              });
+            });
+            if (res.statusCode === 200 && Array.isArray(res.data)) {
+              trackList.value = res.data.sort();
+              formatAppLog("log", "at pages/index/index.vue:295", `成功加载 ${trackList.value.length} 首歌曲`);
+              return true;
+            }
+          } catch (error) {
+            formatAppLog("error", "at pages/index/index.vue:299", "加载歌曲列表失败:", error);
+          }
+          return false;
+        } catch (error) {
+          formatAppLog("error", "at pages/index/index.vue:303", "加载歌曲列表失败:", error);
+          return false;
+        }
+      };
+      const loadDefaultTrack = async () => {
+        try {
+          const loaded = await loadTrackList();
+          if (!loaded && trackList.value.length === 0) {
+            trackList.value = [DEFAULT_TRACK];
+            formatAppLog("warn", "at pages/index/index.vue:317", "无法加载完整歌曲列表，仅使用默认歌曲");
+          }
+          if (!audioCtx) {
+            ensureAudioContext();
+          }
+          if (!audioCtx) {
+            formatAppLog("warn", "at pages/index/index.vue:324", "音频上下文创建失败，跳过默认歌曲加载");
+            return;
+          }
+          const defaultIndex = trackList.value.indexOf(DEFAULT_TRACK);
+          if (defaultIndex >= 0) {
+            currentTrackIndex.value = defaultIndex;
+          } else {
+            trackList.value.push(DEFAULT_TRACK);
+            trackList.value.sort();
+            currentTrackIndex.value = trackList.value.indexOf(DEFAULT_TRACK);
+          }
+          const fullPath = MUSIC_FOLDER + DEFAULT_TRACK;
+          formatAppLog("log", "at pages/index/index.vue:340", "默认歌曲已加载:", fullPath, "索引:", currentTrackIndex.value, "列表长度:", trackList.value.length);
+          audioCtx.src = fullPath;
+          currentTrackName.value = DEFAULT_TRACK;
+        } catch (error) {
+          formatAppLog("error", "at pages/index/index.vue:345", "加载默认歌曲失败:", error);
+          currentTrackName.value = "";
+        }
+      };
+      const canControlTrack = vue.computed(() => {
+        return trackList.value.length > 0 && currentTrackIndex.value >= 0;
       });
       vue.onUnmounted(() => {
         disconnect();
@@ -1230,62 +1161,15 @@ if (uni.restoreGlobal) {
               fail: reject
             });
           });
-          formatAppLog("log", "at pages/index/index.vue:429", "蓝牙适配器初始化成功");
+          formatAppLog("log", "at pages/index/index.vue:370", "蓝牙适配器初始化成功");
           addLog("系统", "蓝牙适配器已就绪", "system");
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:432", "蓝牙初始化失败", error);
+          formatAppLog("error", "at pages/index/index.vue:373", "蓝牙初始化失败", error);
           uni.showToast({
             title: "蓝牙初始化失败",
             icon: "none"
           });
         }
-      };
-      const autoConnectDevice = async () => {
-        const lastDevice = getLastConnectedDevice();
-        if (!lastDevice || !lastDevice.deviceId) {
-          return;
-        }
-        setTimeout(async () => {
-          try {
-            await new Promise((resolve, reject) => {
-              uni.openBluetoothAdapter({
-                success: resolve,
-                fail: reject
-              });
-            });
-            scanning.value = true;
-            discoveredDevices.value = [];
-            await new Promise((resolve, reject) => {
-              uni.startBluetoothDevicesDiscovery({
-                allowDuplicatesKey: false,
-                success: resolve,
-                fail: reject
-              });
-            });
-            const foundDeviceHandler = (devices) => {
-              const list = devices.devices || [];
-              const targetDevice = list.find((d) => d.deviceId === lastDevice.deviceId);
-              if (targetDevice) {
-                uni.stopBluetoothDevicesDiscovery();
-                uni.offBluetoothDeviceFound(foundDeviceHandler);
-                scanning.value = false;
-                connectToDevice({
-                  deviceId: targetDevice.deviceId,
-                  name: targetDevice.name || targetDevice.localName || lastDevice.name
-                });
-              }
-            };
-            uni.onBluetoothDeviceFound(foundDeviceHandler);
-            scanStopTimer = setTimeout(() => {
-              uni.stopBluetoothDevicesDiscovery();
-              uni.offBluetoothDeviceFound(foundDeviceHandler);
-              scanning.value = false;
-            }, 6e3);
-          } catch (error) {
-            formatAppLog("error", "at pages/index/index.vue:496", "自动连接失败", error);
-            scanning.value = false;
-          }
-        }, 1e3);
       };
       const scanDevices = async () => {
         if (scanning.value)
@@ -1299,7 +1183,7 @@ if (uni.restoreGlobal) {
               uni.openBluetoothAdapter({
                 success: resolve,
                 fail: (err) => {
-                  formatAppLog("error", "at pages/index/index.vue:517", "重新打开蓝牙适配器失败", err);
+                  formatAppLog("error", "at pages/index/index.vue:398", "重新打开蓝牙适配器失败", err);
                   resolve();
                 }
               });
@@ -1347,7 +1231,7 @@ if (uni.restoreGlobal) {
             }
           }, 6e3);
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:565", "扫描设备失败", error);
+          formatAppLog("error", "at pages/index/index.vue:446", "扫描设备失败", error);
           scanning.value = false;
           uni.showToast({
             title: "扫描失败",
@@ -1427,9 +1311,8 @@ if (uni.restoreGlobal) {
             title: "连接成功",
             icon: "success"
           });
-          switchMusicCategory("mid");
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:661", "连接设备失败", error);
+          formatAppLog("error", "at pages/index/index.vue:540", "连接设备失败", error);
           uni.showToast({
             title: "连接失败",
             icon: "none"
@@ -1446,7 +1329,7 @@ if (uni.restoreGlobal) {
               });
             });
           } catch (error) {
-            formatAppLog("error", "at pages/index/index.vue:680", "断开连接失败", error);
+            formatAppLog("error", "at pages/index/index.vue:559", "断开连接失败", error);
           }
         }
         isConnected.value = false;
@@ -1480,81 +1363,75 @@ if (uni.restoreGlobal) {
         }
       };
       const parseDeviceLine = (line) => {
-        var _a;
         if (line.startsWith("MUSIC:PLAY")) {
           if (!isPlaying.value) {
-            formatAppLog("log", "at pages/index/index.vue:741", "收到远程指令: 播放");
+            formatAppLog("log", "at pages/index/index.vue:620", "收到远程指令: 播放");
             togglePlayPause();
           }
           return;
         }
         if (line.startsWith("MUSIC:PAUSE")) {
           if (isPlaying.value) {
-            formatAppLog("log", "at pages/index/index.vue:751", "收到远程指令: 暂停");
+            formatAppLog("log", "at pages/index/index.vue:630", "收到远程指令: 暂停");
             togglePlayPause();
           }
           return;
         }
-        if (line.startsWith("MUSIC:NEXT")) {
-          formatAppLog("log", "at pages/index/index.vue:759", "收到远程指令: 下一首");
-          playNextTrack();
-          return;
-        }
-        if (line.startsWith("MUSIC:PREV")) {
-          formatAppLog("log", "at pages/index/index.vue:766", "收到远程指令: 上一首");
-          playPrevTrack();
-          return;
-        }
-        if (line.startsWith("HR:")) {
-          const hrStr = line.split(":")[1];
-          const hr = parseInt(hrStr, 10);
-          if (!isNaN(hr)) {
-            sensorData.heartRate = hr;
-            onHeartRateUpdate(hr);
-          }
-          return;
-        }
-        if (/^Heart\s*Rate/i.test(line)) {
-          const match = line.match(/(\d+)/);
-          if (match) {
-            const hr = parseInt(match[1], 10);
+        if (line.trim().toLowerCase().startsWith("heartrate:")) {
+          const parts = line.split(":", 2);
+          if (parts.length === 2) {
+            const hrStr = parts[1].trim();
+            const hr = parseInt(hrStr, 10);
             if (!isNaN(hr)) {
               sensorData.heartRate = hr;
-              onHeartRateUpdate(hr);
             }
           }
           return;
         }
-        if (/TIME:/i.test(line) || /time:/i.test(line)) {
-          const timeStr = (_a = line.split(":")[1]) == null ? void 0 : _a.trim();
-          if (timeStr) {
-            sensorData.time = timeStr;
-          }
-          return;
-        }
-        if (/SPO2/i.test(line)) {
-          const match = line.match(/(\d+)/);
-          if (match) {
-            sensorData.spo2 = match[1];
-            sensorData.spo2 = sensorData.spo2.replace("%", "");
-          }
-          return;
-        }
-        if (/STEPS/i.test(line) || /Step\s+today/i.test(line)) {
-          const match = line.match(/(\d+)/);
-          if (match) {
-            const newSteps = parseInt(match[1], 10);
-            if (!isNaN(newSteps)) {
-              sensorData.steps = newSteps;
-              updateStepHistory(newSteps);
+        if (line.trim().toLowerCase().startsWith("time:")) {
+          const parts = line.split(":", 2);
+          if (parts.length === 2) {
+            const timeStr = parts[1].trim();
+            if (timeStr) {
+              sensorData.time = timeStr;
             }
           }
           return;
         }
-        if (/TEMP/i.test(line) || /temperature/i.test(line)) {
-          const match = line.match(/(\d+(\.\d+)?)/);
-          if (match) {
-            sensorData.temperature = match[1];
+        if (line.trim().toUpperCase().startsWith("SPO2:")) {
+          const parts = line.split(":", 2);
+          if (parts.length === 2) {
+            const spo2Str = parts[1].trim().replace("%", "");
+            const spo2 = parseInt(spo2Str, 10);
+            if (!isNaN(spo2)) {
+              sensorData.spo2 = spo2;
+            }
+          }
+          return;
+        }
+        if (line.trim().toUpperCase().startsWith("STEPS:")) {
+          const colonCount = (line.match(/:/g) || []).length;
+          if (colonCount === 1) {
+            const parts = line.split(":", 2);
+            if (parts.length === 2) {
+              const stepsStr = parts[1].trim();
+              const newSteps = parseInt(stepsStr, 10);
+              if (!isNaN(newSteps)) {
+                sensorData.steps = newSteps;
+                updateStepHistory(newSteps);
+              }
+            }
+          }
+          return;
+        }
+        if (line.trim().toLowerCase().startsWith("temperature:")) {
+          const parts = line.split(":", 2);
+          if (parts.length === 2) {
+            const tempStr = parts[1].trim();
+            const temp = parseFloat(tempStr);
+            if (!isNaN(temp)) {
+              sensorData.temperature = temp;
+            }
           }
           return;
         }
@@ -1596,7 +1473,7 @@ if (uni.restoreGlobal) {
         }
         const cadence = Math.round(stepDiff * 6e4 / timeDiff);
         sensorData.cadence = cadence;
-        formatAppLog("log", "at pages/index/index.vue:903", `步频计算：${stepDiff}步 / ${timeDiff / 1e3}秒 = ${cadence}步/分钟`);
+        formatAppLog("log", "at pages/index/index.vue:772", `步频计算：${stepDiff}步 / ${timeDiff / 1e3}秒 = ${cadence}步/分钟`);
       };
       const uploadCurrentStatus = async () => {
         const statusData = {
@@ -1604,21 +1481,50 @@ if (uni.restoreGlobal) {
           spo2: sensorData.spo2 || "--",
           steps: sensorData.steps || "--",
           cadence: sensorData.cadence || "--",
-          // 添加步频数据
           temperature: sensorData.temperature || "--",
           currentTrackName: currentTrackName.value || "未选择",
-          musicCategory: currentMusicCategoryLabel.value,
+          musicCategory: "--",
           musicPlayTime: musicPlayTime.value,
           isLiked: isLiked.value ? "是" : "否"
         };
-        formatAppLog("log", "at pages/index/index.vue:921", "========== 用户状态信息 ==========");
-        formatAppLog("log", "at pages/index/index.vue:922", formatDataForLog(statusData));
-        formatAppLog("log", "at pages/index/index.vue:923", "================================");
+        formatAppLog("log", "at pages/index/index.vue:790", "========== 用户状态信息 ==========");
+        formatAppLog("log", "at pages/index/index.vue:791", formatDataForLog(statusData));
+        formatAppLog("log", "at pages/index/index.vue:792", "================================");
         try {
-          await uploadStatusInfo(statusData);
-          formatAppLog("log", "at pages/index/index.vue:928", "状态信息上传成功");
+          const response = await uploadStatusInfo(statusData);
+          formatAppLog("log", "at pages/index/index.vue:797", "状态信息上传成功，服务器响应:", response);
+          handleServerRecommendedSong(response);
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:930", "状态信息上传失败:", error);
+          formatAppLog("error", "at pages/index/index.vue:802", "状态信息上传失败:", error);
+        }
+      };
+      const handleServerRecommendedSong = (response) => {
+        let recommendedSong = null;
+        if (typeof response === "string") {
+          const trimmed = response.trim();
+          if (/\.mp3$/i.test(trimmed)) {
+            recommendedSong = trimmed;
+          }
+        } else if (typeof response === "object" && response !== null) {
+          recommendedSong = response.recommendedSong || response.song || response.trackName || response.file;
+          if (recommendedSong && typeof recommendedSong === "string") {
+            recommendedSong = recommendedSong.trim();
+            if (!/\.mp3$/i.test(recommendedSong)) {
+              recommendedSong = null;
+            }
+          } else {
+            recommendedSong = null;
+          }
+        }
+        if (recommendedSong && recommendedSong !== currentTrackName.value) {
+          formatAppLog("log", "at pages/index/index.vue:834", "收到服务器推荐的歌曲:", recommendedSong);
+          const songIndex = trackList.value.indexOf(recommendedSong);
+          if (songIndex >= 0) {
+            currentTrackIndex.value = songIndex;
+            playTrack(recommendedSong, false);
+          } else {
+            playTrack(recommendedSong, true);
+          }
         }
       };
       const str2ab = (str) => {
@@ -1642,54 +1548,6 @@ if (uni.restoreGlobal) {
       };
       const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const onHeartRateUpdate = (hr) => {
-        currentHeartRate.value = hr;
-        if (lastHeartRate !== null && Math.abs(hr - lastHeartRate) <= HR_TOLERANCE) {
-          lastHeartRate = hr;
-          return;
-        }
-        lastHeartRate = hr;
-        const targetCategory = getCategoryByHeartRate(hr);
-        if (!targetCategory)
-          return;
-        if (manualOverride.value)
-          return;
-        const now = Date.now();
-        if (targetCategory === currentMusicCategory.value) {
-          pendingCategory = null;
-          pendingStartTime = null;
-          return;
-        }
-        if (pendingCategory !== targetCategory) {
-          pendingCategory = targetCategory;
-          pendingStartTime = now;
-          return;
-        }
-        if (now - pendingStartTime >= CATEGORY_SWITCH_DELAY) {
-          switchMusicCategory(targetCategory);
-          pendingCategory = null;
-          pendingStartTime = null;
-        }
-      };
-      const getCategoryByHeartRate = (hr) => {
-        if (hr < hrThresholds.slow.min) {
-          return "none";
-        }
-        if (hr >= hrThresholds.slow.min && hr < hrThresholds.slow.max) {
-          return "slow";
-        }
-        if (hr >= hrThresholds.mid.min && hr < hrThresholds.mid.max) {
-          return "mid";
-        }
-        if (hr >= hrThresholds.midfast.min && hr < hrThresholds.midfast.max) {
-          return "midfast";
-        }
-        if (hr >= hrThresholds.fast.min && hr < hrThresholds.fast.max) {
-          return "fast";
-        }
-        if (hr >= hrThresholds.veryfast.min) {
-          return "veryfast";
-        }
-        return "none";
       };
       const ensureAudioContext = () => {
         if (!audioCtx) {
@@ -1715,11 +1573,133 @@ if (uni.restoreGlobal) {
             musicPlayTime.value = 0;
           });
           audioCtx.onError((err) => {
-            formatAppLog("error", "at pages/index/index.vue:1043", "音乐播放错误", err);
+            formatAppLog("error", "at pages/index/index.vue:904", "音乐播放错误", err);
             addLog("系统", "音乐播放出错");
             isPlaying.value = false;
             stopMusicPlayTimer();
           });
+        }
+      };
+      const playTrack = async (trackFileName, updateIndex = true) => {
+        if (!trackFileName || typeof trackFileName !== "string") {
+          formatAppLog("error", "at pages/index/index.vue:915", "无效的歌曲文件名:", trackFileName);
+          return;
+        }
+        if (currentTrackName.value && currentTrackName.value !== trackFileName) {
+          await uploadCurrentStatus();
+        }
+        ensureAudioContext();
+        if (!audioCtx) {
+          formatAppLog("error", "at pages/index/index.vue:927", "音频上下文未创建");
+          return;
+        }
+        if (currentTrackName.value !== trackFileName) {
+          stopMusicPlayTimer();
+          musicPlayTime.value = 0;
+          isLiked.value = false;
+        }
+        if (updateIndex) {
+          const existingIndex = trackList.value.indexOf(trackFileName);
+          if (existingIndex >= 0) {
+            currentTrackIndex.value = existingIndex;
+          } else {
+            trackList.value.push(trackFileName);
+            trackList.value.sort();
+            currentTrackIndex.value = trackList.value.indexOf(trackFileName);
+            formatAppLog("warn", "at pages/index/index.vue:948", `歌曲 ${trackFileName} 不在列表中，已添加`);
+          }
+        }
+        const fullPath = MUSIC_FOLDER + trackFileName;
+        formatAppLog("log", "at pages/index/index.vue:955", "准备播放:", fullPath, "当前索引:", currentTrackIndex.value, "列表长度:", trackList.value.length);
+        try {
+          const wasPlaying = isPlaying.value;
+          if (wasPlaying) {
+            audioCtx.pause();
+          }
+          audioCtx.src = fullPath;
+          currentTrackName.value = trackFileName;
+          addLog("系统", `播放：${trackFileName}`, "system");
+          if (wasPlaying) {
+            setTimeout(() => {
+              try {
+                const playResult = audioCtx.play();
+                if (playResult && typeof playResult.catch === "function") {
+                  playResult.catch((err) => {
+                    formatAppLog("error", "at pages/index/index.vue:978", "播放失败:", err);
+                    addLog("系统", `播放失败：${trackFileName}`, "system");
+                  });
+                }
+              } catch (playErr) {
+                formatAppLog("error", "at pages/index/index.vue:983", "调用play()失败:", playErr);
+                addLog("系统", `播放失败：${trackFileName}`, "system");
+              }
+            }, 100);
+          }
+        } catch (error) {
+          formatAppLog("error", "at pages/index/index.vue:990", "设置音频源失败:", error);
+          addLog("系统", `播放失败：${trackFileName}`);
+          uni.showToast({
+            title: "播放失败",
+            icon: "none"
+          });
+        }
+      };
+      const playPrevTrack = async () => {
+        if (trackList.value.length === 0) {
+          formatAppLog("warn", "at pages/index/index.vue:1002", "歌曲列表为空，无法切歌");
+          return;
+        }
+        let prevIndex = currentTrackIndex.value - 1;
+        if (prevIndex < 0) {
+          prevIndex = trackList.value.length - 1;
+        }
+        currentTrackIndex.value = prevIndex;
+        const prevTrack = trackList.value[prevIndex];
+        formatAppLog("log", "at pages/index/index.vue:1013", `切歌到上一首: ${prevTrack} (索引: ${prevIndex}/${trackList.value.length - 1})`);
+        const wasPlaying = isPlaying.value;
+        await playTrack(prevTrack, false);
+        if (wasPlaying && audioCtx) {
+          setTimeout(() => {
+            try {
+              const playResult = audioCtx.play();
+              if (playResult && typeof playResult.catch === "function") {
+                playResult.catch((err) => {
+                  formatAppLog("error", "at pages/index/index.vue:1026", "播放上一首失败:", err);
+                });
+              }
+            } catch (playErr) {
+              formatAppLog("error", "at pages/index/index.vue:1030", "调用play()失败:", playErr);
+            }
+          }, 150);
+        }
+      };
+      const playNextTrack = async () => {
+        if (trackList.value.length === 0) {
+          formatAppLog("warn", "at pages/index/index.vue:1039", "歌曲列表为空，无法切歌");
+          return;
+        }
+        let nextIndex = currentTrackIndex.value + 1;
+        if (nextIndex >= trackList.value.length) {
+          nextIndex = 0;
+        }
+        currentTrackIndex.value = nextIndex;
+        const nextTrack = trackList.value[nextIndex];
+        formatAppLog("log", "at pages/index/index.vue:1050", `切歌到下一首: ${nextTrack} (索引: ${nextIndex}/${trackList.value.length - 1})`);
+        const wasPlaying = isPlaying.value;
+        await playTrack(nextTrack, false);
+        if (wasPlaying && audioCtx) {
+          setTimeout(() => {
+            try {
+              const playResult = audioCtx.play();
+              if (playResult && typeof playResult.catch === "function") {
+                playResult.catch((err) => {
+                  formatAppLog("error", "at pages/index/index.vue:1063", "播放下一首失败:", err);
+                });
+              }
+            } catch (playErr) {
+              formatAppLog("error", "at pages/index/index.vue:1067", "调用play()失败:", playErr);
+            }
+          }, 150);
         }
       };
       const startMusicPlayTimer = () => {
@@ -1744,148 +1724,56 @@ if (uni.restoreGlobal) {
         isLiked.value = !isLiked.value;
         await uploadCurrentStatus();
       };
-      const uploadStatusInfoOld = async () => {
-        const statusData = {
-          heartRate: sensorData.heartRate || "--",
-          spo2: sensorData.spo2 || "--",
-          steps: sensorData.steps || "--",
-          temperature: sensorData.temperature || "--",
-          currentTrackName: currentTrackName.value || "未选择",
-          musicCategory: currentMusicCategoryLabel.value,
-          musicPlayTime: musicPlayTime.value,
-          isLiked: isLiked.value ? "是" : "否"
-        };
-        formatAppLog("log", "at pages/index/index.vue:1093", "========== 用户状态信息 ==========");
-        formatAppLog("log", "at pages/index/index.vue:1094", formatDataForLog(statusData));
-        formatAppLog("log", "at pages/index/index.vue:1095", "================================");
-        try {
-          await uploadToServer(statusData);
-          formatAppLog("log", "at pages/index/index.vue:1100", "状态信息上传成功");
-        } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:1102", "状态信息上传失败:", error);
-        }
-      };
-      const loadCategoryTracks = (category) => {
-        return new Promise((resolve) => {
-          const cfg = musicLibrary[category];
-          const tracks = musicDatabase[category] || [];
-          if (tracks.length > 0) {
-            cfg.tracks = tracks;
-            cfg.loaded = true;
-            formatAppLog("log", "at pages/index/index.vue:1117", `分类 ${category} 加载了 ${tracks.length} 首歌曲`);
-          } else {
-            formatAppLog("warn", "at pages/index/index.vue:1119", `分类 ${category} 没有定义歌曲`);
-            addLog("系统", `分类 ${category} 暂无歌曲配置`);
-          }
-          resolve();
-        });
-      };
-      const switchMusicCategory = async (category) => {
-        const cfg = musicLibrary[category];
-        if (!cfg) {
-          addLog("系统", `未知音乐类型: ${category}`);
-          return;
-        }
-        if (!cfg.loaded) {
-          try {
-            await loadCategoryTracks(category);
-          } catch (e) {
-            currentMusicCategory.value = "none";
-            return;
-          }
-        }
-        if (!cfg.tracks || cfg.tracks.length === 0) {
-          addLog("系统", `当前类型(${category})暂无可用曲目`);
-          currentMusicCategory.value = "none";
-          return;
-        }
-        const idx = Math.floor(Math.random() * cfg.tracks.length);
-        await playTrackByIndex(category, idx);
-      };
-      const playTrackByIndex = async (category, index) => {
-        const cfg = musicLibrary[category];
-        if (!cfg || !cfg.tracks || cfg.tracks.length === 0) {
-          return;
-        }
-        const total = cfg.tracks.length;
-        let idx = index;
-        if (idx < 0)
-          idx = total - 1;
-        if (idx >= total)
-          idx = 0;
-        if (currentTrackName.value) {
-          await uploadCurrentStatus();
-        }
-        cfg.currentIndex = idx;
-        const track = cfg.tracks[idx];
-        ensureAudioContext();
-        stopMusicPlayTimer();
-        musicPlayTime.value = 0;
-        isLiked.value = false;
-        const fullPath = cfg.folder + track.file;
-        formatAppLog("log", "at pages/index/index.vue:1181", "准备播放:", fullPath);
-        audioCtx.src = fullPath;
-        audioCtx.play();
-        isPlaying.value = true;
-        currentMusicCategory.value = category;
-        currentTrackName.value = track.file;
-        addLog("系统", `切换至 ${category}：${track.file} (${track.bpm} BPM)`);
-      };
-      const toggleManualOverride = (e) => {
-        manualOverride.value = !e.detail.value ? true : false;
-        if (!manualOverride.value && currentHeartRate.value !== null) {
-          const cat = getCategoryByHeartRate(currentHeartRate.value);
-          if (cat && cat !== "none") {
-            switchMusicCategory(cat);
-          }
-        }
-      };
-      const onManualCategoryChange = (e) => {
-        const idx = Number(e.detail.value);
-        const item = musicCategoryOptions[idx];
-        if (!item)
-          return;
-        manualCategory.value = item.value;
-        manualOverride.value = true;
-        switchMusicCategory(item.value);
-      };
       const togglePlayPause = async () => {
-        ensureAudioContext();
-        const cfg = musicLibrary[currentMusicCategory.value];
-        if (!cfg || !cfg.tracks || cfg.tracks.length === 0) {
-          if (currentHeartRate.value != null) {
-            const cat = getCategoryByHeartRate(currentHeartRate.value);
-            if (cat && cat !== "none") {
-              await switchMusicCategory(cat);
-              return;
+        if (!currentTrackName.value) {
+          await playTrack(DEFAULT_TRACK);
+          setTimeout(() => {
+            if (audioCtx) {
+              try {
+                const playResult = audioCtx.play();
+                if (playResult && typeof playResult.catch === "function") {
+                  playResult.catch((err) => {
+                    formatAppLog("error", "at pages/index/index.vue:1113", "播放默认歌曲失败:", err);
+                  });
+                }
+              } catch (playErr) {
+                formatAppLog("error", "at pages/index/index.vue:1117", "调用play()失败:", playErr);
+              }
             }
-          }
-          await switchMusicCategory("mid");
+          }, 150);
           return;
         }
-        if (!canControlTrack.value) {
-          await playTrackByIndex(currentMusicCategory.value, 0);
+        ensureAudioContext();
+        if (!audioCtx) {
+          formatAppLog("error", "at pages/index/index.vue:1127", "音频上下文未创建");
           return;
         }
         if (isPlaying.value) {
           audioCtx.pause();
         } else {
-          audioCtx.play();
+          if (!audioCtx.src) {
+            const fullPath = MUSIC_FOLDER + currentTrackName.value;
+            audioCtx.src = fullPath;
+          }
+          try {
+            const playResult = audioCtx.play();
+            if (playResult && typeof playResult.catch === "function") {
+              playResult.catch((err) => {
+                formatAppLog("error", "at pages/index/index.vue:1143", "播放失败:", err);
+                uni.showToast({
+                  title: "播放失败",
+                  icon: "none"
+                });
+              });
+            }
+          } catch (playErr) {
+            formatAppLog("error", "at pages/index/index.vue:1151", "调用play()失败:", playErr);
+            uni.showToast({
+              title: "播放失败",
+              icon: "none"
+            });
+          }
         }
-      };
-      const playNextTrack = async () => {
-        const cfg = musicLibrary[currentMusicCategory.value];
-        if (!cfg || !cfg.tracks || cfg.tracks.length === 0)
-          return;
-        const nextIndex = cfg.currentIndex >= 0 ? cfg.currentIndex + 1 : 0;
-        await playTrackByIndex(currentMusicCategory.value, nextIndex);
-      };
-      const playPrevTrack = async () => {
-        const cfg = musicLibrary[currentMusicCategory.value];
-        if (!cfg || !cfg.tracks || cfg.tracks.length === 0)
-          return;
-        const prevIndex = cfg.currentIndex >= 0 ? cfg.currentIndex - 1 : cfg.tracks.length - 1;
-        await playTrackByIndex(currentMusicCategory.value, prevIndex);
       };
       const __returned__ = { isConnected, scanning, batteryLevel, connectedDeviceName, discoveredDevices, get scanStopTimer() {
         return scanStopTimer;
@@ -1895,7 +1783,7 @@ if (uni.restoreGlobal) {
         return cadenceUpdateTimer;
       }, set cadenceUpdateTimer(v) {
         cadenceUpdateTimer = v;
-      }, dataList, sensorData, HR_TOLERANCE, CATEGORY_SWITCH_DELAY, currentHeartRate, currentMusicCategory, manualOverride, manualCategory, isPlaying, currentTrackName, isLiked, musicPlayTime, get musicPlayTimer() {
+      }, dataList, sensorData, isPlaying, currentTrackName, isLiked, musicPlayTime, get musicPlayTimer() {
         return musicPlayTimer;
       }, set musicPlayTimer(v) {
         musicPlayTimer = v;
@@ -1903,23 +1791,11 @@ if (uni.restoreGlobal) {
         return musicStartTime;
       }, set musicStartTime(v) {
         musicStartTime = v;
-      }, get lastHeartRate() {
-        return lastHeartRate;
-      }, set lastHeartRate(v) {
-        lastHeartRate = v;
-      }, get pendingCategory() {
-        return pendingCategory;
-      }, set pendingCategory(v) {
-        pendingCategory = v;
-      }, get pendingStartTime() {
-        return pendingStartTime;
-      }, set pendingStartTime(v) {
-        pendingStartTime = v;
-      }, hrThresholds, musicDatabase, musicLibrary, get audioCtx() {
+      }, MUSIC_FOLDER, DEFAULT_TRACK, trackList, currentTrackIndex, get audioCtx() {
         return audioCtx;
       }, set audioCtx(v) {
         audioCtx = v;
-      }, musicCategoryOptions, thresholdDisplayList, currentMusicCategoryLabel, manualCategoryLabel, canControlTrack, canStartPlay, get bluetoothDevice() {
+      }, get bluetoothDevice() {
         return bluetoothDevice;
       }, set bluetoothDevice(v) {
         bluetoothDevice = v;
@@ -1943,7 +1819,7 @@ if (uni.restoreGlobal) {
         return receiveBuffer;
       }, set receiveBuffer(v) {
         receiveBuffer = v;
-      }, initBluetooth, autoConnectDevice, scanDevices, connectToDevice, disconnect, handleReceivedData, parseDeviceLine, addLog, startBatteryMonitoring, updateStepHistory, calculateCadence, uploadCurrentStatus, str2ab, ab2str, delay, onHeartRateUpdate, getCategoryByHeartRate, ensureAudioContext, startMusicPlayTimer, stopMusicPlayTimer, toggleLike, uploadStatusInfoOld, loadCategoryTracks, switchMusicCategory, playTrackByIndex, toggleManualOverride, onManualCategoryChange, togglePlayPause, playNextTrack, playPrevTrack, ref: vue.ref, reactive: vue.reactive, onMounted: vue.onMounted, onUnmounted: vue.onUnmounted, computed: vue.computed, get saveConnectedDevice() {
+      }, loadTrackList, loadDefaultTrack, canControlTrack, initBluetooth, scanDevices, connectToDevice, disconnect, handleReceivedData, parseDeviceLine, addLog, startBatteryMonitoring, updateStepHistory, calculateCadence, uploadCurrentStatus, handleServerRecommendedSong, str2ab, ab2str, delay, onHeartRateUpdate, ensureAudioContext, playTrack, playPrevTrack, playNextTrack, startMusicPlayTimer, stopMusicPlayTimer, toggleLike, togglePlayPause, ref: vue.ref, reactive: vue.reactive, onMounted: vue.onMounted, onUnmounted: vue.onUnmounted, computed: vue.computed, get saveConnectedDevice() {
         return saveConnectedDevice;
       }, get getLastConnectedDevice() {
         return getLastConnectedDevice;
@@ -2156,32 +2032,6 @@ if (uni.restoreGlobal) {
           vue.createElementVNode("view", { class: "music-panel" }, [
             vue.createElementVNode("view", { class: "music-row" }, [
               vue.createElementVNode("view", { class: "music-status" }, [
-                vue.createElementVNode("text", { class: "music-label" }, "当前节奏"),
-                vue.createElementVNode("text", { class: "music-value" }, [
-                  vue.createTextVNode(
-                    vue.toDisplayString($setup.currentMusicCategoryLabel) + " ",
-                    1
-                    /* TEXT */
-                  ),
-                  $setup.currentHeartRate ? (vue.openBlock(), vue.createElementBlock(
-                    "text",
-                    { key: 0 },
-                    "（HR " + vue.toDisplayString($setup.currentHeartRate) + "）",
-                    1
-                    /* TEXT */
-                  )) : vue.createCommentVNode("v-if", true)
-                ])
-              ]),
-              vue.createElementVNode("view", { class: "music-status" }, [
-                vue.createElementVNode("text", { class: "music-label" }, "自动适配"),
-                vue.createElementVNode("switch", {
-                  checked: !$setup.manualOverride,
-                  onChange: $setup.toggleManualOverride
-                }, null, 40, ["checked"])
-              ])
-            ]),
-            vue.createElementVNode("view", { class: "music-row" }, [
-              vue.createElementVNode("view", { class: "music-status" }, [
                 vue.createElementVNode("text", { class: "music-label" }, "当前曲目"),
                 vue.createElementVNode(
                   "text",
@@ -2215,7 +2065,7 @@ if (uni.restoreGlobal) {
                 vue.createElementVNode("button", {
                   class: "music-btn main",
                   onClick: $setup.togglePlayPause,
-                  disabled: !$setup.canControlTrack && !$setup.canStartPlay
+                  disabled: !$setup.currentTrackName
                 }, vue.toDisplayString($setup.isPlaying ? "暂停" : "播放"), 9, ["disabled"]),
                 vue.createElementVNode("button", {
                   class: "music-btn",
@@ -2223,60 +2073,6 @@ if (uni.restoreGlobal) {
                   disabled: !$setup.canControlTrack
                 }, "»", 8, ["disabled"])
               ])
-            ]),
-            vue.createElementVNode("view", { class: "music-row thresholds-row" }, [
-              (vue.openBlock(true), vue.createElementBlock(
-                vue.Fragment,
-                null,
-                vue.renderList($setup.thresholdDisplayList, (item) => {
-                  return vue.openBlock(), vue.createElementBlock("view", {
-                    class: "threshold-item",
-                    key: item.key
-                  }, [
-                    vue.createElementVNode(
-                      "text",
-                      { class: "music-label" },
-                      vue.toDisplayString(item.label),
-                      1
-                      /* TEXT */
-                    ),
-                    vue.createElementVNode(
-                      "text",
-                      { class: "music-value" },
-                      vue.toDisplayString(item.rangeText),
-                      1
-                      /* TEXT */
-                    )
-                  ]);
-                }),
-                128
-                /* KEYED_FRAGMENT */
-              ))
-            ]),
-            vue.createElementVNode("view", { class: "music-row manual-row" }, [
-              vue.createElementVNode("text", { class: "music-label" }, "手动节奏"),
-              vue.createElementVNode(
-                "picker",
-                {
-                  mode: "selector",
-                  range: $setup.musicCategoryOptions,
-                  "range-key": "label",
-                  onChange: $setup.onManualCategoryChange
-                },
-                [
-                  vue.createElementVNode("view", { class: "manual-picker" }, [
-                    vue.createElementVNode(
-                      "text",
-                      { class: "music-value" },
-                      vue.toDisplayString($setup.manualCategoryLabel),
-                      1
-                      /* TEXT */
-                    )
-                  ])
-                ],
-                32
-                /* NEED_HYDRATION */
-              )
             ])
           ])
         ])) : vue.createCommentVNode("v-if", true)

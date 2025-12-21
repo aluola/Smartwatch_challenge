@@ -85,20 +85,6 @@
         <view class="music-panel">
           <view class="music-row">
             <view class="music-status">
-              <text class="music-label">当前节奏</text>
-              <text class="music-value">
-                {{ currentMusicCategoryLabel }} 
-                <text v-if="currentHeartRate">（HR {{ currentHeartRate }}）</text>
-              </text>
-            </view>
-            <view class="music-status">
-              <text class="music-label">自动适配</text>
-              <switch :checked="!manualOverride" @change="toggleManualOverride" />
-            </view>
-          </view>
-
-          <view class="music-row">
-            <view class="music-status">
               <text class="music-label">当前曲目</text>
               <text class="music-value">
                 {{ currentTrackName || '未选择' }}
@@ -109,29 +95,11 @@
                 <text class="like-icon" :class="{ liked: isLiked }">{{ isLiked ? '❤️' : '🤍' }}</text>
               </button>
               <button class="music-btn" @click="playPrevTrack" :disabled="!canControlTrack">«</button>
-              <button class="music-btn main" @click="togglePlayPause" :disabled="!canControlTrack && !canStartPlay">
+              <button class="music-btn main" @click="togglePlayPause" :disabled="!currentTrackName">
                 {{ isPlaying ? '暂停' : '播放' }}
               </button>
               <button class="music-btn" @click="playNextTrack" :disabled="!canControlTrack">»</button>
             </view>
-          </view>
-
-          <view class="music-row thresholds-row">
-            <view class="threshold-item" v-for="item in thresholdDisplayList" :key="item.key">
-              <text class="music-label">{{ item.label }}</text>
-              <text class="music-value">{{ item.rangeText }}</text>
-            </view>
-          </view>
-
-          <view class="music-row manual-row">
-            <text class="music-label">手动节奏</text>
-            <picker mode="selector" :range="musicCategoryOptions" range-key="label" @change="onManualCategoryChange">
-              <view class="manual-picker">
-                <text class="music-value">
-                  {{ manualCategoryLabel }}
-                </text>
-              </view>
-            </picker>
           </view>
         </view>
       </view>
@@ -171,14 +139,7 @@ const sensorData = reactive({
   cadence: null // 步频（步/分钟）
 })
 
-// 心率与音乐映射
-const HR_TOLERANCE = 3 // 心率小幅波动阈值（bpm）
-const CATEGORY_SWITCH_DELAY = 30000 // 连续跨区间30秒后切换
-
-const currentHeartRate = ref(null)
-const currentMusicCategory = ref('none') // slow / mid / midfast / fast / veryfast / none
-const manualOverride = ref(false)
-const manualCategory = ref('slow')
+// 音乐播放相关
 const isPlaying = ref(false)
 const currentTrackName = ref('')
 const isLiked = ref(false)
@@ -186,216 +147,15 @@ const musicPlayTime = ref(0) // 音乐播放时间（秒）
 let musicPlayTimer = null
 let musicStartTime = null
 
-let lastHeartRate = null
-let pendingCategory = null
-let pendingStartTime = null
+// 音乐文件夹路径
+const MUSIC_FOLDER = '/static/music_new/music/'
+const DEFAULT_TRACK = '010377.mp3' // 默认播放的歌曲
 
-// 心率阈值，可根据个人调整并持久化
-const hrThresholds = reactive({
-  slow: { min: 60, max: 80 },
-  mid: { min: 80, max: 96 },
-  midfast: { min: 96, max: 120 },
-  fast: { min: 120, max: 144 },
-  veryfast: { min: 144, max: 999 }
-})
-
-// 1. 定义音乐数据库（手动录入或从外部 js 导入，替代 txt 文件读取）
-// 请确保文件名与你 static 文件夹下的实际文件名一致
-const musicDatabase = {
-  slow: [
-    { file: 'slow_song_1.mp3', bpm: 65 }
-  ],
-  mid: [
-    { file: 'mid_song_1.mp3', bpm: 80 },
-    { file: 'mid_song_2.mp3', bpm: 81 },
-	{ file: 'mid_song_3.mp3', bpm: 82 },
-	{ file: 'mid_song_4.mp3', bpm: 83 },
-	{ file: 'mid_song_5.mp3', bpm: 84 },
-	{ file: 'mid_song_6.mp3', bpm: 85 },
-	{ file: 'mid_song_7.mp3', bpm: 86 },
-	{ file: 'mid_song_8.mp3', bpm: 87 },
-	{ file: 'mid_song_9.mp3', bpm: 88 },
-	{ file: 'mid_song_10.mp3', bpm: 89 },
-	{ file: 'mid_song_11.mp3', bpm: 90 },
-	{ file: 'mid_song_12.mp3', bpm: 91 },
-	{ file: 'mid_song_13.mp3', bpm: 92 },
-	{ file: 'mid_song_14.mp3', bpm: 93 },
-	{ file: 'mid_song_15.mp3', bpm: 94 },
-	{ file: 'mid_song_16.mp3', bpm: 95 },
-	{ file: 'mid_song_17.mp3', bpm: 96 },
-	{ file: 'mid_song_18.mp3', bpm: 97 },
-	{ file: 'mid_song_19.mp3', bpm: 98 },
-	{ file: 'mid_song_20.mp3', bpm: 99 },
-	{ file: 'mid_song_21.mp3', bpm: 99 },
-	{ file: 'mid_song_22.mp3', bpm: 90 },
-	{ file: 'mid_song_23.mp3', bpm: 90 },
-	{ file: 'mid_song_24.mp3', bpm: 90 },
-	{ file: 'mid_song_25.mp3', bpm: 90 },
-	{ file: 'mid_song_26.mp3', bpm: 90 },
-	{ file: 'mid_song_27.mp3', bpm: 90 },
-	{ file: 'mid_song_28.mp3', bpm: 90 },
-	{ file: 'mid_song_29.mp3', bpm: 90 },
-	{ file: 'mid_song_30.mp3', bpm: 90 }
-  ],
-  midfast: [
-    { file: 'midfast_song_1.mp3', bpm: 100 },
-    { file: 'midfast_song_2.mp3', bpm: 101 },
-	{ file: 'midfast_song_3.mp3', bpm: 102 },
-	{ file: 'midfast_song_4.mp3', bpm: 103 },
-	{ file: 'midfast_song_5.mp3', bpm: 104 },
-	{ file: 'midfast_song_6.mp3', bpm: 105 },
-	{ file: 'midfast_song_7.mp3', bpm: 106 },
-	{ file: 'midfast_song_8.mp3', bpm: 107 },
-	{ file: 'midfast_song_9.mp3', bpm: 108 },
-	{ file: 'midfast_song_10.mp3', bpm: 109 },
-	{ file: 'midfast_song_11.mp3', bpm: 110 },
-	{ file: 'midfast_song_12.mp3', bpm: 111 },
-	{ file: 'midfast_song_13.mp3', bpm: 112 },
-	{ file: 'midfast_song_14.mp3', bpm: 113 },
-	{ file: 'midfast_song_15.mp3', bpm: 114 },
-	{ file: 'midfast_song_16.mp3', bpm: 115 },
-	{ file: 'midfast_song_17.mp3', bpm: 116 },
-	{ file: 'midfast_song_18.mp3', bpm: 117 },
-	{ file: 'midfast_song_19.mp3', bpm: 118 },
-	{ file: 'midfast_song_20.mp3', bpm: 119 },
-	{ file: 'midfast_song_21.mp3', bpm: 119 },
-	{ file: 'midfast_song_22.mp3', bpm: 119 },
-	{ file: 'midfast_song_23.mp3', bpm: 119 },
-	{ file: 'midfast_song_24.mp3', bpm: 119 },
-	{ file: 'midfast_song_25.mp3', bpm: 119 },
-	{ file: 'midfast_song_26.mp3', bpm: 119 },
-  ],
-  fast: [
-    { file: 'fast_song_1.mp3', bpm: 120 },
-    { file: 'fast_song_2.mp3', bpm: 121 },
-	{ file: 'fast_song_3.mp3', bpm: 122 },
-	{ file: 'fast_song_4.mp3', bpm: 123 },
-	{ file: 'fast_song_5.mp3', bpm: 124 },
-	{ file: 'fast_song_6.mp3', bpm: 125 },
-	{ file: 'fast_song_7.mp3', bpm: 126 },
-	{ file: 'fast_song_8.mp3', bpm: 127 },
-	{ file: 'fast_song_9.mp3', bpm: 128 },
-	{ file: 'fast_song_10.mp3', bpm: 129 },
-	{ file: 'fast_song_11.mp3', bpm: 130 },
-	{ file: 'fast_song_12.mp3', bpm: 131 },
-	{ file: 'fast_song_13.mp3', bpm: 132 },
-	{ file: 'fast_song_14.mp3', bpm: 133 },
-	{ file: 'fast_song_15.mp3', bpm: 134 },
-	{ file: 'fast_song_16.mp3', bpm: 135 }
-  ],
-  veryfast: [
-    { file: 'veryfast_song_1.mp3', bpm: 140 },
-    { file: 'veryfast_song_2.mp3', bpm: 141 },
-	{ file: 'veryfast_song_3.mp3', bpm: 142 },
-	{ file: 'veryfast_song_4.mp3', bpm: 143 },
-	{ file: 'veryfast_song_5.mp3', bpm: 144 },
-	{ file: 'veryfast_song_6.mp3', bpm: 145 },
-	{ file: 'veryfast_song_7.mp3', bpm: 146 },
-	{ file: 'veryfast_song_8.mp3', bpm: 147 },
-	{ file: 'veryfast_song_9.mp3', bpm: 148 },
-	{ file: 'veryfast_song_10.mp3', bpm: 149 },
-	{ file: 'veryfast_song_11.mp3', bpm: 150 },
-	{ file: 'veryfast_song_12.mp3', bpm: 151 },
-	{ file: 'veryfast_song_13.mp3', bpm: 152 },
-	{ file: 'veryfast_song_14.mp3', bpm: 153 },
-	{ file: 'veryfast_song_15.mp3', bpm: 154 },
-	{ file: 'veryfast_song_16.mp3', bpm: 155 },
-	{ file: 'veryfast_song_17.mp3', bpm: 156 },
-	{ file: 'veryfast_song_18.mp3', bpm: 157 },
-	{ file: 'veryfast_song_19.mp3', bpm: 158 },
-	{ file: 'veryfast_song_20.mp3', bpm: 159 },
-	{ file: 'veryfast_song_21.mp3', bpm: 160 },
-	{ file: 'veryfast_song_22.mp3', bpm: 161 },
-	{ file: 'veryfast_song_23.mp3', bpm: 162 },
-	{ file: 'veryfast_song_24.mp3', bpm: 163 },
-	{ file: 'veryfast_song_25.mp3', bpm: 164 },
-	{ file: 'veryfast_song_26.mp3', bpm: 165 },
-	{ file: 'veryfast_song_27.mp3', bpm: 166 },
-	{ file: 'veryfast_song_28.mp3', bpm: 167 }
-  ]
-}
-
-
-
-// 音乐库配置（从各自 bpm_list.txt 动态读取）
-// App 真机建议将 Music 文件夹放在 static 目录下，运行时通过 static/Music/... 访问
-const musicLibrary = reactive({
-  slow: {
-    folder: '/static/Music/000-079_BPM_slow/', 
-    tracks: [],
-    loaded: false,
-    currentIndex: -1
-  },
-  mid: {
-    folder: '/static/Music/080-099_BPM_mid/',
-    tracks: [],
-    loaded: false,
-    currentIndex: -1
-  },
-  midfast: {
-    folder: '/static/Music/100-119_BPM_midfast/',
-    tracks: [],
-    loaded: false,
-    currentIndex: -1
-  },
-  fast: {
-    folder: '/static/Music/120-139_BPM_fast/',
-    tracks: [],
-    loaded: false,
-    currentIndex: -1
-  },
-  veryfast: {
-    folder: '/static/Music/140+_BPM_veryfast/',
-    tracks: [],
-    loaded: false,
-    currentIndex: -1
-  }
-})
+// 歌曲列表管理
+const trackList = ref([]) // 歌曲列表
+const currentTrackIndex = ref(-1) // 当前歌曲索引
 
 let audioCtx = null
-
-const musicCategoryOptions = [
-  { value: 'slow', label: '慢速 slow' },
-  { value: 'mid', label: '中速 mid' },
-  { value: 'midfast', label: '中快 midfast' },
-  { value: 'fast', label: '快速 fast' },
-  { value: 'veryfast', label: '超快 veryfast' }
-]
-
-const thresholdDisplayList = computed(() => [
-  { key: 'slow', label: 'Slow', rangeText: `${hrThresholds.slow.min}-${hrThresholds.slow.max}` },
-  { key: 'mid', label: 'Mid', rangeText: `${hrThresholds.mid.min}-${hrThresholds.mid.max}` },
-  { key: 'midfast', label: 'Mid-fast', rangeText: `${hrThresholds.midfast.min}-${hrThresholds.midfast.max}` },
-  { key: 'fast', label: 'Fast', rangeText: `${hrThresholds.fast.min}-${hrThresholds.fast.max}` },
-  { key: 'veryfast', label: 'Very fast', rangeText: `${hrThresholds.veryfast.min}+` }
-])
-
-const currentMusicCategoryLabel = computed(() => {
-  const map = {
-    none: '未播放',
-    slow: '慢速 slow',
-    mid: '中速 mid',
-    midfast: '中快 midfast',
-    fast: '快速 fast',
-    veryfast: '超快 veryfast'
-  }
-  return map[currentMusicCategory.value] || '未播放'
-})
-
-const manualCategoryLabel = computed(() => {
-  const found = musicCategoryOptions.find(i => i.value === manualCategory.value)
-  return found ? found.label : '请选择'
-})
-
-const canControlTrack = computed(() => {
-  const cfg = musicLibrary[currentMusicCategory.value]
-  return !!(cfg && cfg.tracks && cfg.tracks.length > 0 && cfg.currentIndex >= 0)
-})
-
-const canStartPlay = computed(() => {
-  const cfg = musicLibrary[currentMusicCategory.value]
-  return !!(cfg && cfg.tracks && cfg.tracks.length > 0)
-})
 
 // 蓝牙设备相关变量
 let bluetoothDevice = null
@@ -409,7 +169,188 @@ let receiveBuffer = ''	//接收数据缓冲区
 onMounted(() => {
   initBluetooth()
   startBatteryMonitoring()
-  autoConnectDevice()
+  // 延迟加载默认歌曲，确保页面完全加载后再加载音频
+  // 使用 nextTick 确保 DOM 完全渲染后再加载
+  setTimeout(() => {
+    try {
+      loadDefaultTrack()
+    } catch (error) {
+      console.error('初始化默认歌曲失败:', error)
+      // 即使加载失败也不影响应用运行
+    }
+  }, 1000)
+})
+
+// 加载歌曲列表
+const loadTrackList = async () => {
+  try {
+    // #ifdef APP-PLUS
+    // App端使用文件系统API读取JSON文件
+    return new Promise((resolve) => {
+      const fs = uni.getFileSystemManager()
+      
+      // App端的静态资源路径
+      const possiblePaths = [
+        '_www/static/music_new/music_list.json',
+        'static/music_new/music_list.json',
+        '/static/music_new/music_list.json'
+      ]
+      
+      const tryReadFile = (pathIndex) => {
+        if (pathIndex >= possiblePaths.length) {
+          console.error('所有路径都无法读取歌曲列表文件，尝试使用HTTP请求')
+          // 如果文件系统读取失败，尝试使用HTTP请求（适用于开发时的H5调试）
+          uni.request({
+            url: 'http://localhost:8080/static/music_new/music_list.json',
+            method: 'GET',
+            success: (res) => {
+              if (res.statusCode === 200 && Array.isArray(res.data)) {
+                trackList.value = res.data.sort()
+                console.log(`成功通过HTTP加载 ${trackList.value.length} 首歌曲`)
+                resolve(true)
+              } else {
+                console.error('HTTP请求返回格式不正确')
+                resolve(false)
+              }
+            },
+            fail: () => {
+              console.error('所有方法都无法加载歌曲列表')
+              resolve(false)
+            }
+          })
+          return
+        }
+        
+        const path = possiblePaths[pathIndex]
+        fs.readFile({
+          filePath: path,
+          encoding: 'utf8',
+          success: (res) => {
+            try {
+              const data = JSON.parse(res.data)
+              if (Array.isArray(data)) {
+                trackList.value = data.sort()
+                console.log(`成功加载 ${trackList.value.length} 首歌曲 (使用路径: ${path})`)
+                resolve(true)
+              } else {
+                console.error('JSON格式不正确')
+                tryReadFile(pathIndex + 1)
+              }
+            } catch (parseErr) {
+              console.error('JSON解析失败:', parseErr)
+              tryReadFile(pathIndex + 1)
+            }
+          },
+          fail: (err) => {
+            console.log(`路径 ${path} 读取失败，尝试下一个路径:`, err.errMsg || err)
+            tryReadFile(pathIndex + 1)
+          }
+        })
+      }
+      
+      tryReadFile(0)
+    })
+    // #endif
+    
+    // #ifdef H5
+    // H5端使用uni.request
+    try {
+      const res = await new Promise((resolve, reject) => {
+        uni.request({
+          url: '/static/music_new/music_list.json',
+          method: 'GET',
+          success: resolve,
+          fail: reject
+        })
+      })
+      
+      if (res.statusCode === 200 && Array.isArray(res.data)) {
+        trackList.value = res.data.sort()
+        console.log(`成功加载 ${trackList.value.length} 首歌曲`)
+        return true
+      } else {
+        console.warn('歌曲列表格式不正确')
+        return false
+      }
+    } catch (error) {
+      console.error('从 JSON 文件加载歌曲列表失败:', error)
+      return false
+    }
+    // #endif
+    
+    // 默认情况（其他平台）
+    console.warn('未识别的平台，尝试使用uni.request')
+    try {
+      const res = await new Promise((resolve, reject) => {
+        uni.request({
+          url: '/static/music_new/music_list.json',
+          method: 'GET',
+          success: resolve,
+          fail: reject
+        })
+      })
+      
+      if (res.statusCode === 200 && Array.isArray(res.data)) {
+        trackList.value = res.data.sort()
+        console.log(`成功加载 ${trackList.value.length} 首歌曲`)
+        return true
+      }
+    } catch (error) {
+      console.error('加载歌曲列表失败:', error)
+    }
+    return false
+  } catch (error) {
+    console.error('加载歌曲列表失败:', error)
+    return false
+  }
+}
+
+// 加载默认歌曲
+const loadDefaultTrack = async () => {
+  try {
+    // 先加载歌曲列表
+    const loaded = await loadTrackList()
+    
+    if (!loaded && trackList.value.length === 0) {
+      // 如果加载失败，至少添加默认歌曲
+      trackList.value = [DEFAULT_TRACK]
+      console.warn('无法加载完整歌曲列表，仅使用默认歌曲')
+    }
+    
+    if (!audioCtx) {
+      ensureAudioContext()
+    }
+    if (!audioCtx) {
+      console.warn('音频上下文创建失败，跳过默认歌曲加载')
+      return
+    }
+    
+    // 查找默认歌曲在列表中的位置
+    const defaultIndex = trackList.value.indexOf(DEFAULT_TRACK)
+    if (defaultIndex >= 0) {
+      currentTrackIndex.value = defaultIndex
+    } else {
+      // 如果默认歌曲不在列表中，添加到列表并排序
+      trackList.value.push(DEFAULT_TRACK)
+      trackList.value.sort()
+      currentTrackIndex.value = trackList.value.indexOf(DEFAULT_TRACK)
+    }
+    
+    const fullPath = MUSIC_FOLDER + DEFAULT_TRACK
+    console.log('默认歌曲已加载:', fullPath, '索引:', currentTrackIndex.value, '列表长度:', trackList.value.length)
+    // 只设置音频源，不自动播放（等用户点击播放按钮）
+    audioCtx.src = fullPath
+    currentTrackName.value = DEFAULT_TRACK
+  } catch (error) {
+    console.error('加载默认歌曲失败:', error)
+    // 即使加载失败也不影响应用运行
+    currentTrackName.value = ''
+  }
+}
+
+// 计算是否可以控制切歌
+const canControlTrack = computed(() => {
+  return trackList.value.length > 0 && currentTrackIndex.value >= 0
 })
 
 onUnmounted(() => {
@@ -437,67 +378,7 @@ const initBluetooth = async () => {
   }
 }
 
-// 自动连接设备
-const autoConnectDevice = async () => {
-  const lastDevice = getLastConnectedDevice()
-  if (!lastDevice || !lastDevice.deviceId) {
-    return
-  }
-  
-  // 延迟一下，确保蓝牙适配器已初始化
-  setTimeout(async () => {
-    try {
-      await new Promise((resolve, reject) => {
-        uni.openBluetoothAdapter({
-          success: resolve,
-          fail: reject
-        })
-      })
-      
-      // 开始扫描
-      scanning.value = true
-      discoveredDevices.value = []
-      
-      await new Promise((resolve, reject) => {
-        uni.startBluetoothDevicesDiscovery({
-          allowDuplicatesKey: false,
-          success: resolve,
-          fail: reject
-        })
-      })
-      
-      // 监听发现设备
-      const foundDeviceHandler = (devices) => {
-        const list = devices.devices || []
-        const targetDevice = list.find(d => d.deviceId === lastDevice.deviceId)
-        
-        if (targetDevice) {
-          uni.stopBluetoothDevicesDiscovery()
-          uni.offBluetoothDeviceFound(foundDeviceHandler)
-          scanning.value = false
-          
-          connectToDevice({
-            deviceId: targetDevice.deviceId,
-            name: targetDevice.name || targetDevice.localName || lastDevice.name
-          })
-        }
-      }
-      
-      uni.onBluetoothDeviceFound(foundDeviceHandler)
-      
-      // 6秒后停止扫描
-      scanStopTimer = setTimeout(() => {
-        uni.stopBluetoothDevicesDiscovery()
-        uni.offBluetoothDeviceFound(foundDeviceHandler)
-        scanning.value = false
-      }, 6000)
-      
-    } catch (error) {
-      console.error('自动连接失败', error)
-      scanning.value = false
-    }
-  }, 1000)
-}
+
 
 // 扫描设备
 const scanDevices = async () => {
@@ -654,8 +535,6 @@ const connectToDevice = async (device) => {
       title: '连接成功',
       icon: 'success'
     })
-    // 默认播放一段中速节奏音乐，作为正常心率的背景
-    switchMusicCategory('mid')
     
   } catch (error) {
     console.error('连接设备失败', error)
@@ -754,85 +633,75 @@ const parseDeviceLine = (line) => {
     return
   }
 
-  // 下一首指令
-  if (line.startsWith('MUSIC:NEXT')) {
-    console.log('收到远程指令: 下一首')
-    playNextTrack()
-    return
-  }
+  // --- 2. 传感器数据解析区域 (更严格的格式匹配) ---
 
-  // 上一首指令
-  if (line.startsWith('MUSIC:PREV')) {
-    console.log('收到远程指令: 上一首')
-    playPrevTrack()
-    return
-  }
-
-  // --- 2. 传感器数据解析区域 (保持原有逻辑) ---
-
-    // 心率
-  if (line.startsWith('HR:')) {
-    const hrStr = line.split(':')[1]
-    const hr = parseInt(hrStr, 10)
-    if (!isNaN(hr)) {
-      sensorData.heartRate = hr
-      onHeartRateUpdate(hr)
-    }
-    return
-  }
-  
-  // 兼容其他格式的心率
-  if (/^Heart\s*Rate/i.test(line)) {
-    const match = line.match(/(\d+)/)
-    if (match) {
-      const hr = parseInt(match[1], 10)
+  // 心率 - 只匹配完整的 heartRate: 格式
+  if (line.trim().toLowerCase().startsWith('heartrate:')) {
+    const parts = line.split(':', 2)
+    if (parts.length === 2) {
+      const hrStr = parts[1].trim()
+      const hr = parseInt(hrStr, 10)
       if (!isNaN(hr)) {
         sensorData.heartRate = hr
-        onHeartRateUpdate(hr)
+        // 心率数据只用于上传，不再用于自动切换音乐
       }
     }
     return
   }
 
-  // 时间
-  if (/TIME:/i.test(line) || /time:/i.test(line)) {
-    const timeStr = line.split(':')[1]?.trim()
-    if (timeStr) {
-      sensorData.time = timeStr
-    }
-    return
-  }
-
-  // 血氧
-  if (/SPO2/i.test(line)) {
-    const match = line.match(/(\d+)/)
-    if (match) {
-      sensorData.spo2 = match[1]
-      // 某些设备可能发送 SPO2:99%
-      sensorData.spo2 = sensorData.spo2.replace('%', '') 
-    }
-    return
-  }
-
-  // 步数
-  if (/STEPS/i.test(line) || /Step\s+today/i.test(line)) {
-    const match = line.match(/(\d+)/)
-    if (match) {
-      const newSteps = parseInt(match[1], 10)
-      if (!isNaN(newSteps)) {
-        sensorData.steps = newSteps
-        // 更新步数历史记录并计算步频
-        updateStepHistory(newSteps)
+  // 时间 - 只匹配完整的 time: 格式，排除 tempetime:
+  if (line.trim().toLowerCase().startsWith('time:')) {
+    const parts = line.split(':', 2)
+    if (parts.length === 2) {
+      const timeStr = parts[1].trim()
+      if (timeStr) {
+        sensorData.time = timeStr
       }
     }
     return
   }
 
-  // 温度
-  if (/TEMP/i.test(line) || /temperature/i.test(line)) {
-    const match = line.match(/(\d+(\.\d+)?)/)
-    if (match) {
-      sensorData.temperature = match[1]
+  // 血氧 - 更严格地匹配 SPO2: 格式
+  if (line.trim().toUpperCase().startsWith('SPO2:')) {
+    const parts = line.split(':', 2)
+    if (parts.length === 2) {
+      const spo2Str = parts[1].trim().replace('%', '')
+      const spo2 = parseInt(spo2Str, 10)
+      if (!isNaN(spo2)) {
+        sensorData.spo2 = spo2
+      }
+    }
+    return
+  }
+
+  // 步数 - 更严格地匹配，排除错误格式
+  if (line.trim().toUpperCase().startsWith('STEPS:')) {
+    // 检查是否有多个冒号或格式错误
+    const colonCount = (line.match(/:/g) || []).length
+    if (colonCount === 1) {
+      const parts = line.split(':', 2)
+      if (parts.length === 2) {
+        const stepsStr = parts[1].trim()
+        const newSteps = parseInt(stepsStr, 10)
+        if (!isNaN(newSteps)) {
+          sensorData.steps = newSteps
+          // 更新步数历史记录并计算步频
+          updateStepHistory(newSteps)
+        }
+      }
+    }
+    return
+  }
+
+  // 温度 - 更严格地匹配 temperature: 格式，排除 heartRaterature:
+  if (line.trim().toLowerCase().startsWith('temperature:')) {
+    const parts = line.split(':', 2)
+    if (parts.length === 2) {
+      const tempStr = parts[1].trim()
+      const temp = parseFloat(tempStr)
+      if (!isNaN(temp)) {
+        sensorData.temperature = temp
+      }
     }
     return
   }
@@ -909,10 +778,10 @@ const uploadCurrentStatus = async () => {
     heartRate: sensorData.heartRate || '--',
     spo2: sensorData.spo2 || '--',
     steps: sensorData.steps || '--',
-    cadence: sensorData.cadence || '--', // 添加步频数据
+    cadence: sensorData.cadence || '--',
     temperature: sensorData.temperature || '--',
     currentTrackName: currentTrackName.value || '未选择',
-    musicCategory: currentMusicCategoryLabel.value,
+    musicCategory: '--',
     musicPlayTime: musicPlayTime.value,
     isLiked: isLiked.value ? '是' : '否'
   }
@@ -922,12 +791,59 @@ const uploadCurrentStatus = async () => {
   console.log(formatDataForLog(statusData))
   console.log('================================')
   
-  // 上传到服务器
+  // 上传到服务器，并接收推荐的歌曲
   try {
-    await uploadStatusInfo(statusData)
-    console.log('状态信息上传成功')
+    const response = await uploadStatusInfo(statusData)
+    console.log('状态信息上传成功，服务器响应:', response)
+    
+    // 处理服务器返回的推荐歌曲
+    handleServerRecommendedSong(response)
   } catch (error) {
     console.error('状态信息上传失败:', error)
+  }
+}
+
+// 处理服务器推荐的歌曲
+const handleServerRecommendedSong = (response) => {
+  // 服务器可能返回的格式：
+  // 1. 直接是字符串: "010377.mp3"
+  // 2. 对象: {recommendedSong: "010377.mp3"} 或 {song: "010377.mp3"}
+  let recommendedSong = null
+  
+  if (typeof response === 'string') {
+    // 检查是否是歌曲文件名格式（六个数字.mp3或其他.mp3格式）
+    const trimmed = response.trim()
+    if (/\.mp3$/i.test(trimmed)) {
+      recommendedSong = trimmed
+    }
+  } else if (typeof response === 'object' && response !== null) {
+    // 尝试从对象中提取歌曲名
+    recommendedSong = response.recommendedSong || response.song || response.trackName || response.file
+    if (recommendedSong && typeof recommendedSong === 'string') {
+      recommendedSong = recommendedSong.trim()
+      if (!/\.mp3$/i.test(recommendedSong)) {
+        recommendedSong = null
+      }
+    } else {
+      recommendedSong = null
+    }
+  }
+  
+  // 如果有推荐的歌曲且与当前歌曲不同，则在完整列表中找到并播放
+  if (recommendedSong && recommendedSong !== currentTrackName.value) {
+    console.log('收到服务器推荐的歌曲:', recommendedSong)
+    
+    // 在完整歌曲列表中查找推荐歌曲
+    const songIndex = trackList.value.indexOf(recommendedSong)
+    if (songIndex >= 0) {
+      // 歌曲在列表中，直接使用索引播放
+      currentTrackIndex.value = songIndex
+      playTrack(recommendedSong, false) // false 表示不更新索引（已经手动更新了）
+    } else {
+      // 歌曲不在列表中，但应该播放（可能是新歌曲，但列表应该已经包含了）
+      // 直接播放，playTrack 函数会处理
+      playTrack(recommendedSong, true)
+    }
   }
 }
 
@@ -955,65 +871,10 @@ const ab2str = (buffer) => {
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
-// 心率变化 -> 音乐类型决策
+// 心率更新（保留用于显示，但不再用于音乐切换）
 const onHeartRateUpdate = (hr) => {
-  currentHeartRate.value = hr
-
-  // 小幅波动，保持当前类型
-  if (lastHeartRate !== null && Math.abs(hr - lastHeartRate) <= HR_TOLERANCE) {
-    lastHeartRate = hr
-    return
-  }
-  lastHeartRate = hr
-
-  const targetCategory = getCategoryByHeartRate(hr)
-  if (!targetCategory) return
-
-  // 手动覆盖时不自动切换
-  if (manualOverride.value) return
-
-  const now = Date.now()
-
-  if (targetCategory === currentMusicCategory.value) {
-    // 已是当前类型，清除待切换状态
-    pendingCategory = null
-    pendingStartTime = null
-    return
-  }
-
-  if (pendingCategory !== targetCategory) {
-    pendingCategory = targetCategory
-    pendingStartTime = now
-    return
-  }
-
-  if (now - pendingStartTime >= CATEGORY_SWITCH_DELAY) {
-    switchMusicCategory(targetCategory)
-    pendingCategory = null
-    pendingStartTime = null
-  }
-}
-
-const getCategoryByHeartRate = (hr) => {
-  if (hr < hrThresholds.slow.min) {
-    return 'none'
-  }
-  if (hr >= hrThresholds.slow.min && hr < hrThresholds.slow.max) {
-    return 'slow'
-  }
-  if (hr >= hrThresholds.mid.min && hr < hrThresholds.mid.max) {
-    return 'mid'
-  }
-  if (hr >= hrThresholds.midfast.min && hr < hrThresholds.midfast.max) {
-    return 'midfast'
-  }
-  if (hr >= hrThresholds.fast.min && hr < hrThresholds.fast.max) {
-    return 'fast'
-  }
-  if (hr >= hrThresholds.veryfast.min) {
-    return 'veryfast'
-  }
-  return 'none'
+  // 心率数据只用于显示，不再用于自动切换音乐
+  // 音乐切换由服务器推荐控制
 }
 
 const ensureAudioContext = () => {
@@ -1048,6 +909,167 @@ const ensureAudioContext = () => {
   }
 }
 
+// 播放指定的歌曲
+const playTrack = async (trackFileName, updateIndex = true) => {
+  if (!trackFileName || typeof trackFileName !== 'string') {
+    console.error('无效的歌曲文件名:', trackFileName)
+    return
+  }
+  
+  // 如果正在播放其他歌曲，先上传当前状态
+  if (currentTrackName.value && currentTrackName.value !== trackFileName) {
+    await uploadCurrentStatus()
+  }
+  
+  ensureAudioContext()
+  
+  if (!audioCtx) {
+    console.error('音频上下文未创建')
+    return
+  }
+  
+  // 重置播放时间和喜欢状态（如果切换了歌曲）
+  if (currentTrackName.value !== trackFileName) {
+    stopMusicPlayTimer()
+    musicPlayTime.value = 0
+    isLiked.value = false
+  }
+  
+  // 如果歌曲不在列表中，添加到列表（但这种情况不应该发生，因为列表应该已经完整）
+  if (updateIndex) {
+    const existingIndex = trackList.value.indexOf(trackFileName)
+    if (existingIndex >= 0) {
+      currentTrackIndex.value = existingIndex
+    } else {
+      // 如果歌曲不在列表中，添加并排序（虽然不应该发生）
+      trackList.value.push(trackFileName)
+      trackList.value.sort()
+      currentTrackIndex.value = trackList.value.indexOf(trackFileName)
+      console.warn(`歌曲 ${trackFileName} 不在列表中，已添加`)
+    }
+  }
+  
+  // 构建完整路径
+  const fullPath = MUSIC_FOLDER + trackFileName
+  
+  console.log('准备播放:', fullPath, '当前索引:', currentTrackIndex.value, '列表长度:', trackList.value.length)
+  
+  try {
+    // 先暂停当前播放（如果正在播放）
+    const wasPlaying = isPlaying.value
+    if (wasPlaying) {
+      audioCtx.pause()
+    }
+    
+    // 设置新的音频源
+    audioCtx.src = fullPath
+    currentTrackName.value = trackFileName
+    addLog('系统', `播放：${trackFileName}`, 'system')
+    
+    // 如果之前正在播放，则播放新歌曲
+    if (wasPlaying) {
+      // 使用 setTimeout 确保音频源已设置
+      setTimeout(() => {
+        try {
+          const playResult = audioCtx.play()
+          // play() 可能返回 Promise 也可能不返回，需要检查
+          if (playResult && typeof playResult.catch === 'function') {
+            playResult.catch(err => {
+              console.error('播放失败:', err)
+              addLog('系统', `播放失败：${trackFileName}`, 'system')
+            })
+          }
+        } catch (playErr) {
+          console.error('调用play()失败:', playErr)
+          addLog('系统', `播放失败：${trackFileName}`, 'system')
+        }
+      }, 100)
+    }
+    
+  } catch (error) {
+    console.error('设置音频源失败:', error)
+    addLog('系统', `播放失败：${trackFileName}`, 'system')
+    uni.showToast({
+      title: '播放失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 播放上一首
+const playPrevTrack = async () => {
+  if (trackList.value.length === 0) {
+    console.warn('歌曲列表为空，无法切歌')
+    return
+  }
+  
+  let prevIndex = currentTrackIndex.value - 1
+  if (prevIndex < 0) {
+    prevIndex = trackList.value.length - 1 // 循环到最后一首
+  }
+  
+  currentTrackIndex.value = prevIndex
+  const prevTrack = trackList.value[prevIndex]
+  console.log(`切歌到上一首: ${prevTrack} (索引: ${prevIndex}/${trackList.value.length - 1})`)
+  
+  // 记录之前是否在播放
+  const wasPlaying = isPlaying.value
+  await playTrack(prevTrack, false) // false 表示不更新索引（已经手动更新了）
+  
+  // 如果之前正在播放，确保新歌曲也开始播放
+  if (wasPlaying && audioCtx) {
+    setTimeout(() => {
+      try {
+        const playResult = audioCtx.play()
+        if (playResult && typeof playResult.catch === 'function') {
+          playResult.catch(err => {
+            console.error('播放上一首失败:', err)
+          })
+        }
+      } catch (playErr) {
+        console.error('调用play()失败:', playErr)
+      }
+    }, 150)
+  }
+}
+
+// 播放下一首
+const playNextTrack = async () => {
+  if (trackList.value.length === 0) {
+    console.warn('歌曲列表为空，无法切歌')
+    return
+  }
+  
+  let nextIndex = currentTrackIndex.value + 1
+  if (nextIndex >= trackList.value.length) {
+    nextIndex = 0 // 循环到第一首
+  }
+  
+  currentTrackIndex.value = nextIndex
+  const nextTrack = trackList.value[nextIndex]
+  console.log(`切歌到下一首: ${nextTrack} (索引: ${nextIndex}/${trackList.value.length - 1})`)
+  
+  // 记录之前是否在播放
+  const wasPlaying = isPlaying.value
+  await playTrack(nextTrack, false) // false 表示不更新索引（已经手动更新了）
+  
+  // 如果之前正在播放，确保新歌曲也开始播放
+  if (wasPlaying && audioCtx) {
+    setTimeout(() => {
+      try {
+        const playResult = audioCtx.play()
+        if (playResult && typeof playResult.catch === 'function') {
+          playResult.catch(err => {
+            console.error('播放下一首失败:', err)
+          })
+        }
+      } catch (playErr) {
+        console.error('调用play()失败:', playErr)
+      }
+    }, 150)
+  }
+}
+
 // 开始音乐播放时间计时
 const startMusicPlayTimer = () => {
   stopMusicPlayTimer()
@@ -1076,183 +1098,63 @@ const toggleLike = async () => {
   await uploadCurrentStatus()
 }
 
-// 上传状态信息到服务器（旧函数，已替换为uploadCurrentStatus）
-const uploadStatusInfoOld = async () => {
-  const statusData = {
-    heartRate: sensorData.heartRate || '--',
-    spo2: sensorData.spo2 || '--',
-    steps: sensorData.steps || '--',
-    temperature: sensorData.temperature || '--',
-    currentTrackName: currentTrackName.value || '未选择',
-    musicCategory: currentMusicCategoryLabel.value,
-    musicPlayTime: musicPlayTime.value,
-    isLiked: isLiked.value ? '是' : '否'
-  }
-  
-  // 打印到控制台
-  console.log('========== 用户状态信息 ==========')
-  console.log(formatDataForLog(statusData))
-  console.log('================================')
-  
-  // 上传到服务器
-  try {
-    await uploadToServer(statusData)
-    console.log('状态信息上传成功')
-  } catch (error) {
-    console.error('状态信息上传失败:', error)
-  }
-}
-
-// 从 bpm_list.txt 载入指定类型的曲目列表（App 真机走本地文件系统）
-// 修改后的加载函数
-const loadCategoryTracks = (category) => {
-  return new Promise((resolve) => {
-    const cfg = musicLibrary[category]
-    // 从预定义的数据库中获取数据
-    const tracks = musicDatabase[category] || []
-    
-    if (tracks.length > 0) {
-      cfg.tracks = tracks
-      cfg.loaded = true
-      console.log(`分类 ${category} 加载了 ${tracks.length} 首歌曲`)
-    } else {
-      console.warn(`分类 ${category} 没有定义歌曲`)
-      addLog('系统', `分类 ${category} 暂无歌曲配置`, 'system')
-    }
-    resolve()
-  })
-}
-
-const switchMusicCategory = async (category) => {
-  const cfg = musicLibrary[category]
-  if (!cfg) {
-    addLog('系统', `未知音乐类型: ${category}`, 'system')
-    return
-  }
-
-  if (!cfg.loaded) {
-    try {
-      await loadCategoryTracks(category)
-    } catch (e) {
-      currentMusicCategory.value = 'none'
-      return
-    }
-  }
-
-  if (!cfg.tracks || cfg.tracks.length === 0) {
-    addLog('系统', `当前类型(${category})暂无可用曲目`, 'system')
-    currentMusicCategory.value = 'none'
-    return
-  }
-  // 随机选择一首作为当前曲目
-  const idx = Math.floor(Math.random() * cfg.tracks.length)
-  await playTrackByIndex(category, idx)
-}
-
-const playTrackByIndex = async (category, index) => {
-  const cfg = musicLibrary[category]
-  if (!cfg || !cfg.tracks || cfg.tracks.length === 0) {
-    return
-  }
-  const total = cfg.tracks.length
-  let idx = index
-  if (idx < 0) idx = total - 1
-  if (idx >= total) idx = 0
-  
-  // 如果是切换歌曲，先上传当前状态信息
-  if (currentTrackName.value) {
-    await uploadCurrentStatus()
-  }
-  
-  cfg.currentIndex = idx
-  const track = cfg.tracks[idx]
-  
-  ensureAudioContext()
-  
-  // 重置播放时间和喜欢状态
-  stopMusicPlayTimer()
-  musicPlayTime.value = 0
-  isLiked.value = false
-  
-  // 关键修正：确保路径拼接正确
-  // cfg.folder 已经是 '/static/...'
-  const fullPath = cfg.folder + track.file
-  
-  console.log('准备播放:', fullPath) // 调试用
-  
-  audioCtx.src = fullPath
-  audioCtx.play()
-  
-  isPlaying.value = true // 强制设为 true，有时 onPlay 回调有延迟
-  currentMusicCategory.value = category
-  currentTrackName.value = track.file
-  addLog('系统', `切换至 ${category}：${track.file} (${track.bpm} BPM)`, 'system')
-}
-
-// UI：自动/手动切换
-const toggleManualOverride = (e) => {
-  manualOverride.value = !e.detail.value ? true : false
-  // switch 的 checked 表示“自动适配启用”，因此需要反转含义
-  if (!manualOverride.value && currentHeartRate.value !== null) {
-    // 恢复自动时立即按照当前心率校正一次
-    const cat = getCategoryByHeartRate(currentHeartRate.value)
-    if (cat && cat !== 'none') {
-      switchMusicCategory(cat)
-    }
-  }
-}
-
-const onManualCategoryChange = (e) => {
-  const idx = Number(e.detail.value)
-  const item = musicCategoryOptions[idx]
-  if (!item) return
-  manualCategory.value = item.value
-  manualOverride.value = true
-  switchMusicCategory(item.value)
-}
-
-// 播放/暂停与上下曲
+// 播放/暂停
 const togglePlayPause = async () => {
-  ensureAudioContext()
-  const cfg = musicLibrary[currentMusicCategory.value]
-  if (!cfg || !cfg.tracks || cfg.tracks.length === 0) {
-    // 若当前类型没有曲目，优先按心率推断类型，其次使用默认中速类型
-    if (currentHeartRate.value != null) {
-      const cat = getCategoryByHeartRate(currentHeartRate.value)
-      if (cat && cat !== 'none') {
-        await switchMusicCategory(cat)
-        return
+  if (!currentTrackName.value) {
+    // 如果没有当前歌曲，播放默认歌曲
+    await playTrack(DEFAULT_TRACK)
+    // 播放默认歌曲后，需要手动触发播放
+    setTimeout(() => {
+      if (audioCtx) {
+        try {
+          const playResult = audioCtx.play()
+          if (playResult && typeof playResult.catch === 'function') {
+            playResult.catch(err => {
+              console.error('播放默认歌曲失败:', err)
+            })
+          }
+        } catch (playErr) {
+          console.error('调用play()失败:', playErr)
+        }
       }
-    }
-    // 没有心率数据时，默认播放中速 mid
-    await switchMusicCategory('mid')
+    }, 150)
     return
   }
-
-  if (!canControlTrack.value) {
-    await playTrackByIndex(currentMusicCategory.value, 0)
+  
+  ensureAudioContext()
+  
+  if (!audioCtx) {
+    console.error('音频上下文未创建')
     return
   }
-
+  
   if (isPlaying.value) {
     audioCtx.pause()
   } else {
-    audioCtx.play()
+    // 确保音频源已设置
+    if (!audioCtx.src) {
+      const fullPath = MUSIC_FOLDER + currentTrackName.value
+      audioCtx.src = fullPath
+    }
+    try {
+      const playResult = audioCtx.play()
+      if (playResult && typeof playResult.catch === 'function') {
+        playResult.catch(err => {
+          console.error('播放失败:', err)
+          uni.showToast({
+            title: '播放失败',
+            icon: 'none'
+          })
+        })
+      }
+    } catch (playErr) {
+      console.error('调用play()失败:', playErr)
+      uni.showToast({
+        title: '播放失败',
+        icon: 'none'
+      })
+    }
   }
-}
-
-const playNextTrack = async () => {
-  const cfg = musicLibrary[currentMusicCategory.value]
-  if (!cfg || !cfg.tracks || cfg.tracks.length === 0) return
-  const nextIndex = (cfg.currentIndex >= 0 ? cfg.currentIndex + 1 : 0)
-  await playTrackByIndex(currentMusicCategory.value, nextIndex)
-}
-
-const playPrevTrack = async () => {
-  const cfg = musicLibrary[currentMusicCategory.value]
-  if (!cfg || !cfg.tracks || cfg.tracks.length === 0) return
-  const prevIndex = (cfg.currentIndex >= 0 ? cfg.currentIndex - 1 : cfg.tracks.length - 1)
-  await playTrackByIndex(currentMusicCategory.value, prevIndex)
 }
 </script>
 

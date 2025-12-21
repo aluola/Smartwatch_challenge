@@ -87,10 +87,12 @@ export async function uploadInitialInfo(initialData) {
 /**
  * 上传状态信息到服务器（flag=1）
  * @param {Object} statusData - 状态信息数据
- * @returns {Promise} 返回Promise
+ * @returns {Promise} 返回Promise，resolve时会返回服务器推荐的歌曲名（如果有）
  */
 export async function uploadStatusInfo(statusData) {
-  return await sendWithAck(1, statusData)
+  const response = await sendWithAck(1, statusData)
+  // 服务器可能在响应中返回推荐的歌曲名，例如: {recommendedSong: "010377.mp3"} 或直接返回字符串 "010377.mp3"
+  return response
 }
 
 /**
