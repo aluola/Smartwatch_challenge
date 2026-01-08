@@ -66,12 +66,10 @@ const handleNext = () => {
     return
   }
   
-  // 保存运动频率数据
   updateUserProfile({
     exerciseFrequency: selectedFreq.value
   })
   
-  // 跳转到下一个问卷页面
   uni.redirectTo({
     url: '/pages/questionnaire/exercise-type/exercise-type'
   })

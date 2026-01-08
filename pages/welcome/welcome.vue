@@ -30,12 +30,10 @@ const checkQuestionnaireStatus = () => {
     const completed = isQuestionnaireCompleted()
     
     if (completed) {
-      // 问卷已完成，跳转到主页面
       uni.reLaunch({
         url: '/pages/index/index'
       })
     } else {
-      // 问卷未完成，跳转到第一个问卷页面
       uni.redirectTo({
         url: '/pages/questionnaire/age/age'
       })

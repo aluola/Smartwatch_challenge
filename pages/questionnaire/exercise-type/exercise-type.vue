@@ -67,12 +67,10 @@ const handleNext = () => {
     return
   }
   
-  // 保存主要运动类型数据
   updateUserProfile({
     exerciseType: selectedType.value
   })
   
-  // 跳转到最后一个问卷页面
   uni.redirectTo({
     url: '/pages/questionnaire/music-genre/music-genre'
   })

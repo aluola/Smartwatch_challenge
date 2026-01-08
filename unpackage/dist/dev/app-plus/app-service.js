@@ -999,7 +999,7 @@ if (uni.restoreGlobal) {
       const sensorData = vue.reactive({
         heartRate: null,
         spo2: null,
-        steps: null,
+        stepssteps: null,
         temperature: null,
         time: null,
         cadence: null
@@ -1377,6 +1377,16 @@ if (uni.restoreGlobal) {
           }
           return;
         }
+        if (line.startsWith("MUSIC:PREV")) {
+          formatAppLog("log", "at pages/index/index.vue:638", "收到远程指令: 上一首");
+          playPrevTrack();
+          return;
+        }
+        if (line.startsWith("MUSIC:NEXT")) {
+          formatAppLog("log", "at pages/index/index.vue:645", "收到远程指令: 下一首");
+          playNextTrack();
+          return;
+        }
         if (line.trim().toLowerCase().startsWith("heartrate:")) {
           const parts = line.split(":", 2);
           if (parts.length === 2) {
@@ -1409,7 +1419,7 @@ if (uni.restoreGlobal) {
           }
           return;
         }
-        if (line.trim().toUpperCase().startsWith("STEPS:")) {
+        if (line.trim().toUpperCase().startsWith("STEPSSTEPS:")) {
           const colonCount = (line.match(/:/g) || []).length;
           if (colonCount === 1) {
             const parts = line.split(":", 2);
@@ -1417,7 +1427,7 @@ if (uni.restoreGlobal) {
               const stepsStr = parts[1].trim();
               const newSteps = parseInt(stepsStr, 10);
               if (!isNaN(newSteps)) {
-                sensorData.steps = newSteps;
+                sensorData.stepssteps = newSteps;
                 updateStepHistory(newSteps);
               }
             }
@@ -1453,9 +1463,9 @@ if (uni.restoreGlobal) {
           batteryLevel.value = Math.max(10, batteryLevel.value - 0.1);
         }, 6e4);
       };
-      const updateStepHistory = (steps) => {
+      const updateStepHistory = (stepssteps) => {
         const now = Date.now();
-        stepHistory.value.push({ timestamp: now, steps });
+        stepHistory.value.push({ timestamp: now, stepssteps });
         const cutoffTime = now - CADENCE_TIME_WINDOW;
         stepHistory.value = stepHistory.value.filter((item) => item.timestamp >= cutoffTime);
         calculateCadence();
@@ -1467,19 +1477,19 @@ if (uni.restoreGlobal) {
         const firstRecord = stepHistory.value[0];
         const lastRecord = stepHistory.value[stepHistory.value.length - 1];
         const timeDiff = lastRecord.timestamp - firstRecord.timestamp;
-        const stepDiff = lastRecord.steps - firstRecord.steps;
+        const stepDiff = lastRecord.stepssteps - firstRecord.stepssteps;
         if (timeDiff <= 0 || stepDiff <= 0) {
           return;
         }
         const cadence = Math.round(stepDiff * 6e4 / timeDiff);
         sensorData.cadence = cadence;
-        formatAppLog("log", "at pages/index/index.vue:772", `步频计算：${stepDiff}步 / ${timeDiff / 1e3}秒 = ${cadence}步/分钟`);
+        formatAppLog("log", "at pages/index/index.vue:786", `步频计算：${stepDiff}步 / ${timeDiff / 1e3}秒 = ${cadence}步/分钟`);
       };
       const uploadCurrentStatus = async () => {
         const statusData = {
           heartRate: sensorData.heartRate || "--",
           spo2: sensorData.spo2 || "--",
-          steps: sensorData.steps || "--",
+          steps: sensorData.stepssteps || "--",
           cadence: sensorData.cadence || "--",
           temperature: sensorData.temperature || "--",
           currentTrackName: currentTrackName.value || "未选择",
@@ -1487,15 +1497,15 @@ if (uni.restoreGlobal) {
           musicPlayTime: musicPlayTime.value,
           isLiked: isLiked.value ? "是" : "否"
         };
-        formatAppLog("log", "at pages/index/index.vue:790", "========== 用户状态信息 ==========");
-        formatAppLog("log", "at pages/index/index.vue:791", formatDataForLog(statusData));
-        formatAppLog("log", "at pages/index/index.vue:792", "================================");
+        formatAppLog("log", "at pages/index/index.vue:804", "========== 用户状态信息 ==========");
+        formatAppLog("log", "at pages/index/index.vue:805", formatDataForLog(statusData));
+        formatAppLog("log", "at pages/index/index.vue:806", "================================");
         try {
           const response = await uploadStatusInfo(statusData);
-          formatAppLog("log", "at pages/index/index.vue:797", "状态信息上传成功，服务器响应:", response);
+          formatAppLog("log", "at pages/index/index.vue:811", "状态信息上传成功，服务器响应:", response);
           handleServerRecommendedSong(response);
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:802", "状态信息上传失败:", error);
+          formatAppLog("error", "at pages/index/index.vue:816", "状态信息上传失败:", error);
         }
       };
       const handleServerRecommendedSong = (response) => {
@@ -1517,7 +1527,7 @@ if (uni.restoreGlobal) {
           }
         }
         if (recommendedSong && recommendedSong !== currentTrackName.value) {
-          formatAppLog("log", "at pages/index/index.vue:834", "收到服务器推荐的歌曲:", recommendedSong);
+          formatAppLog("log", "at pages/index/index.vue:848", "收到服务器推荐的歌曲:", recommendedSong);
           const songIndex = trackList.value.indexOf(recommendedSong);
           if (songIndex >= 0) {
             currentTrackIndex.value = songIndex;
@@ -1573,7 +1583,7 @@ if (uni.restoreGlobal) {
             musicPlayTime.value = 0;
           });
           audioCtx.onError((err) => {
-            formatAppLog("error", "at pages/index/index.vue:904", "音乐播放错误", err);
+            formatAppLog("error", "at pages/index/index.vue:918", "音乐播放错误", err);
             addLog("系统", "音乐播放出错");
             isPlaying.value = false;
             stopMusicPlayTimer();
@@ -1582,7 +1592,7 @@ if (uni.restoreGlobal) {
       };
       const playTrack = async (trackFileName, updateIndex = true) => {
         if (!trackFileName || typeof trackFileName !== "string") {
-          formatAppLog("error", "at pages/index/index.vue:915", "无效的歌曲文件名:", trackFileName);
+          formatAppLog("error", "at pages/index/index.vue:929", "无效的歌曲文件名:", trackFileName);
           return;
         }
         if (currentTrackName.value && currentTrackName.value !== trackFileName) {
@@ -1590,7 +1600,7 @@ if (uni.restoreGlobal) {
         }
         ensureAudioContext();
         if (!audioCtx) {
-          formatAppLog("error", "at pages/index/index.vue:927", "音频上下文未创建");
+          formatAppLog("error", "at pages/index/index.vue:941", "音频上下文未创建");
           return;
         }
         if (currentTrackName.value !== trackFileName) {
@@ -1606,11 +1616,11 @@ if (uni.restoreGlobal) {
             trackList.value.push(trackFileName);
             trackList.value.sort();
             currentTrackIndex.value = trackList.value.indexOf(trackFileName);
-            formatAppLog("warn", "at pages/index/index.vue:948", `歌曲 ${trackFileName} 不在列表中，已添加`);
+            formatAppLog("warn", "at pages/index/index.vue:962", `歌曲 ${trackFileName} 不在列表中，已添加`);
           }
         }
         const fullPath = MUSIC_FOLDER + trackFileName;
-        formatAppLog("log", "at pages/index/index.vue:955", "准备播放:", fullPath, "当前索引:", currentTrackIndex.value, "列表长度:", trackList.value.length);
+        formatAppLog("log", "at pages/index/index.vue:969", "准备播放:", fullPath, "当前索引:", currentTrackIndex.value, "列表长度:", trackList.value.length);
         try {
           const wasPlaying = isPlaying.value;
           if (wasPlaying) {
@@ -1625,18 +1635,18 @@ if (uni.restoreGlobal) {
                 const playResult = audioCtx.play();
                 if (playResult && typeof playResult.catch === "function") {
                   playResult.catch((err) => {
-                    formatAppLog("error", "at pages/index/index.vue:978", "播放失败:", err);
+                    formatAppLog("error", "at pages/index/index.vue:992", "播放失败:", err);
                     addLog("系统", `播放失败：${trackFileName}`, "system");
                   });
                 }
               } catch (playErr) {
-                formatAppLog("error", "at pages/index/index.vue:983", "调用play()失败:", playErr);
+                formatAppLog("error", "at pages/index/index.vue:997", "调用play()失败:", playErr);
                 addLog("系统", `播放失败：${trackFileName}`, "system");
               }
             }, 100);
           }
         } catch (error) {
-          formatAppLog("error", "at pages/index/index.vue:990", "设置音频源失败:", error);
+          formatAppLog("error", "at pages/index/index.vue:1004", "设置音频源失败:", error);
           addLog("系统", `播放失败：${trackFileName}`);
           uni.showToast({
             title: "播放失败",
@@ -1646,7 +1656,7 @@ if (uni.restoreGlobal) {
       };
       const playPrevTrack = async () => {
         if (trackList.value.length === 0) {
-          formatAppLog("warn", "at pages/index/index.vue:1002", "歌曲列表为空，无法切歌");
+          formatAppLog("warn", "at pages/index/index.vue:1016", "歌曲列表为空，无法切歌");
           return;
         }
         let prevIndex = currentTrackIndex.value - 1;
@@ -1655,7 +1665,7 @@ if (uni.restoreGlobal) {
         }
         currentTrackIndex.value = prevIndex;
         const prevTrack = trackList.value[prevIndex];
-        formatAppLog("log", "at pages/index/index.vue:1013", `切歌到上一首: ${prevTrack} (索引: ${prevIndex}/${trackList.value.length - 1})`);
+        formatAppLog("log", "at pages/index/index.vue:1027", `切歌到上一首: ${prevTrack} (索引: ${prevIndex}/${trackList.value.length - 1})`);
         const wasPlaying = isPlaying.value;
         await playTrack(prevTrack, false);
         if (wasPlaying && audioCtx) {
@@ -1664,18 +1674,18 @@ if (uni.restoreGlobal) {
               const playResult = audioCtx.play();
               if (playResult && typeof playResult.catch === "function") {
                 playResult.catch((err) => {
-                  formatAppLog("error", "at pages/index/index.vue:1026", "播放上一首失败:", err);
+                  formatAppLog("error", "at pages/index/index.vue:1040", "播放上一首失败:", err);
                 });
               }
             } catch (playErr) {
-              formatAppLog("error", "at pages/index/index.vue:1030", "调用play()失败:", playErr);
+              formatAppLog("error", "at pages/index/index.vue:1044", "调用play()失败:", playErr);
             }
           }, 150);
         }
       };
       const playNextTrack = async () => {
         if (trackList.value.length === 0) {
-          formatAppLog("warn", "at pages/index/index.vue:1039", "歌曲列表为空，无法切歌");
+          formatAppLog("warn", "at pages/index/index.vue:1053", "歌曲列表为空，无法切歌");
           return;
         }
         let nextIndex = currentTrackIndex.value + 1;
@@ -1684,7 +1694,7 @@ if (uni.restoreGlobal) {
         }
         currentTrackIndex.value = nextIndex;
         const nextTrack = trackList.value[nextIndex];
-        formatAppLog("log", "at pages/index/index.vue:1050", `切歌到下一首: ${nextTrack} (索引: ${nextIndex}/${trackList.value.length - 1})`);
+        formatAppLog("log", "at pages/index/index.vue:1064", `切歌到下一首: ${nextTrack} (索引: ${nextIndex}/${trackList.value.length - 1})`);
         const wasPlaying = isPlaying.value;
         await playTrack(nextTrack, false);
         if (wasPlaying && audioCtx) {
@@ -1693,11 +1703,11 @@ if (uni.restoreGlobal) {
               const playResult = audioCtx.play();
               if (playResult && typeof playResult.catch === "function") {
                 playResult.catch((err) => {
-                  formatAppLog("error", "at pages/index/index.vue:1063", "播放下一首失败:", err);
+                  formatAppLog("error", "at pages/index/index.vue:1077", "播放下一首失败:", err);
                 });
               }
             } catch (playErr) {
-              formatAppLog("error", "at pages/index/index.vue:1067", "调用play()失败:", playErr);
+              formatAppLog("error", "at pages/index/index.vue:1081", "调用play()失败:", playErr);
             }
           }, 150);
         }
@@ -1733,11 +1743,11 @@ if (uni.restoreGlobal) {
                 const playResult = audioCtx.play();
                 if (playResult && typeof playResult.catch === "function") {
                   playResult.catch((err) => {
-                    formatAppLog("error", "at pages/index/index.vue:1113", "播放默认歌曲失败:", err);
+                    formatAppLog("error", "at pages/index/index.vue:1127", "播放默认歌曲失败:", err);
                   });
                 }
               } catch (playErr) {
-                formatAppLog("error", "at pages/index/index.vue:1117", "调用play()失败:", playErr);
+                formatAppLog("error", "at pages/index/index.vue:1131", "调用play()失败:", playErr);
               }
             }
           }, 150);
@@ -1745,7 +1755,7 @@ if (uni.restoreGlobal) {
         }
         ensureAudioContext();
         if (!audioCtx) {
-          formatAppLog("error", "at pages/index/index.vue:1127", "音频上下文未创建");
+          formatAppLog("error", "at pages/index/index.vue:1141", "音频上下文未创建");
           return;
         }
         if (isPlaying.value) {
@@ -1759,7 +1769,7 @@ if (uni.restoreGlobal) {
             const playResult = audioCtx.play();
             if (playResult && typeof playResult.catch === "function") {
               playResult.catch((err) => {
-                formatAppLog("error", "at pages/index/index.vue:1143", "播放失败:", err);
+                formatAppLog("error", "at pages/index/index.vue:1157", "播放失败:", err);
                 uni.showToast({
                   title: "播放失败",
                   icon: "none"
@@ -1767,7 +1777,7 @@ if (uni.restoreGlobal) {
               });
             }
           } catch (playErr) {
-            formatAppLog("error", "at pages/index/index.vue:1151", "调用play()失败:", playErr);
+            formatAppLog("error", "at pages/index/index.vue:1165", "调用play()失败:", playErr);
             uni.showToast({
               title: "播放失败",
               icon: "none"
@@ -2003,7 +2013,7 @@ if (uni.restoreGlobal) {
               vue.createElementVNode(
                 "text",
                 { class: "sensor-value" },
-                vue.toDisplayString($setup.sensorData.steps ?? "--"),
+                vue.toDisplayString($setup.sensorData.stepssteps ?? "--"),
                 1
                 /* TEXT */
               )

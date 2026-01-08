@@ -123,14 +123,12 @@ const handleNext = () => {
   
   const bmiValue = calculateBMI(parseFloat(height.value), parseFloat(weight.value))
   
-  // 保存身高体重数据
   updateUserProfile({
     height: parseFloat(height.value),
     weight: parseFloat(weight.value),
     bmi: bmiValue
   })
   
-  // 跳转到下一个问卷页面
   uni.redirectTo({
     url: '/pages/questionnaire/exercise-freq/exercise-freq'
   })

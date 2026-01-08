@@ -1,12 +1,5 @@
-/**
- * 蓝牙设备存储管理工具
- */
-
 const BLUETOOTH_DEVICE_KEY = 'last_connected_bluetooth_device'
 
-/**
- * 保存已连接的蓝牙设备信息
- */
 export function saveConnectedDevice(device) {
   try {
     const deviceInfo = {
@@ -22,9 +15,6 @@ export function saveConnectedDevice(device) {
   }
 }
 
-/**
- * 获取上次连接的蓝牙设备信息
- */
 export function getLastConnectedDevice() {
   try {
     const device = uni.getStorageSync(BLUETOOTH_DEVICE_KEY)
@@ -35,9 +25,6 @@ export function getLastConnectedDevice() {
   }
 }
 
-/**
- * 清除保存的蓝牙设备信息
- */
 export function clearSavedDevice() {
   try {
     uni.removeStorageSync(BLUETOOTH_DEVICE_KEY)

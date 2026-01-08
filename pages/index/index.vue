@@ -1,6 +1,5 @@
 <template>
   <view class="watch-container">
-    <!-- 顶部状态栏 -->
     <view class="top-section">
       <view class="status-bar">
         <view class="bluetooth-status" :class="{ connected: isConnected }">
@@ -27,7 +26,6 @@
       </view>
     </view>
 
-    <!-- 中间数据显示区域 -->
     <view class="middle-section">
       <view class="data-display">
         <view class="data-header">
@@ -47,7 +45,6 @@
         </scroll-view>
       </view>
       
-      <!-- 手表当前时间显示 -->
       <view class="watch-time" v-if="isConnected">
         <view class="time-header">
           <text class="time-title">手表当前时间</text>
@@ -57,7 +54,6 @@
         </view>
       </view>
       
-      <!-- 传感器数据显示 + 音乐控制 -->
       <view class="sensor-data" v-if="isConnected">
         <view class="sensor-grid">
           <view class="sensor-item">
@@ -70,7 +66,7 @@
           </view>
           <view class="sensor-item">
             <text class="sensor-label">步数</text>
-            <text class="sensor-value">{{ sensorData.steps ?? '--' }}</text>
+            <text class="sensor-value">{{ sensorData.stepssteps ?? '--' }}</text>
           </view>
           <view class="sensor-item">
             <text class="sensor-label">步频</text>
@@ -113,7 +109,6 @@ import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { saveConnectedDevice, getLastConnectedDevice } from '../../utils/bluetoothStorage'
 import { uploadInitialInfo, uploadStatusInfo, formatDataForLog } from '../../utils/serverApi'
 
-// 状态管理
 const isConnected = ref(false)
 const scanning = ref(false)
 const batteryLevel = ref(100)
@@ -121,75 +116,61 @@ const connectedDeviceName = ref('')
 const discoveredDevices = ref([])
 let scanStopTimer = null
 
-// 步频计算相关
-const stepHistory = ref([]) // 存储最近5秒内的步数记录 [{timestamp: number, steps: number}]
-const CADENCE_TIME_WINDOW = 5000 // 步频计算的时间窗口（毫秒）
+const stepHistory = ref([])
+const CADENCE_TIME_WINDOW = 5000
 let cadenceUpdateTimer = null
 
-// 数据列表
 const dataList = ref([])
 
-// 传感器数据
 const sensorData = reactive({
   heartRate: null,
   spo2: null,
-  steps: null,
+  stepssteps: null,
   temperature: null,
   time: null,
-  cadence: null // 步频（步/分钟）
+  cadence: null
 })
 
-// 音乐播放相关
 const isPlaying = ref(false)
 const currentTrackName = ref('')
 const isLiked = ref(false)
-const musicPlayTime = ref(0) // 音乐播放时间（秒）
+const musicPlayTime = ref(0)
 let musicPlayTimer = null
 let musicStartTime = null
 
-// 音乐文件夹路径
 const MUSIC_FOLDER = '/static/music_new/music/'
-const DEFAULT_TRACK = '010377.mp3' // 默认播放的歌曲
+const DEFAULT_TRACK = '010377.mp3'
 
-// 歌曲列表管理
-const trackList = ref([]) // 歌曲列表
-const currentTrackIndex = ref(-1) // 当前歌曲索引
+const trackList = ref([])
+const currentTrackIndex = ref(-1)
 
 let audioCtx = null
 
-// 蓝牙设备相关变量
 let bluetoothDevice = null
 let writeServiceId = null
 let writeCharId = null
 let notifyServiceId = null
 let notifyCharId = null
-let receiveBuffer = ''	//接收数据缓冲区
+let receiveBuffer = ''
 
-// 生命周期
 onMounted(() => {
   initBluetooth()
   startBatteryMonitoring()
-  // 延迟加载默认歌曲，确保页面完全加载后再加载音频
-  // 使用 nextTick 确保 DOM 完全渲染后再加载
   setTimeout(() => {
     try {
       loadDefaultTrack()
     } catch (error) {
       console.error('初始化默认歌曲失败:', error)
-      // 即使加载失败也不影响应用运行
     }
   }, 1000)
 })
 
-// 加载歌曲列表
 const loadTrackList = async () => {
   try {
     // #ifdef APP-PLUS
-    // App端使用文件系统API读取JSON文件
     return new Promise((resolve) => {
       const fs = uni.getFileSystemManager()
       
-      // App端的静态资源路径
       const possiblePaths = [
         '_www/static/music_new/music_list.json',
         'static/music_new/music_list.json',
@@ -199,7 +180,6 @@ const loadTrackList = async () => {
       const tryReadFile = (pathIndex) => {
         if (pathIndex >= possiblePaths.length) {
           console.error('所有路径都无法读取歌曲列表文件，尝试使用HTTP请求')
-          // 如果文件系统读取失败，尝试使用HTTP请求（适用于开发时的H5调试）
           uni.request({
             url: 'http://localhost:8080/static/music_new/music_list.json',
             method: 'GET',
@@ -253,7 +233,6 @@ const loadTrackList = async () => {
     // #endif
     
     // #ifdef H5
-    // H5端使用uni.request
     try {
       const res = await new Promise((resolve, reject) => {
         uni.request({
@@ -278,7 +257,6 @@ const loadTrackList = async () => {
     }
     // #endif
     
-    // 默认情况（其他平台）
     console.warn('未识别的平台，尝试使用uni.request')
     try {
       const res = await new Promise((resolve, reject) => {
@@ -305,14 +283,11 @@ const loadTrackList = async () => {
   }
 }
 
-// 加载默认歌曲
 const loadDefaultTrack = async () => {
   try {
-    // 先加载歌曲列表
     const loaded = await loadTrackList()
     
     if (!loaded && trackList.value.length === 0) {
-      // 如果加载失败，至少添加默认歌曲
       trackList.value = [DEFAULT_TRACK]
       console.warn('无法加载完整歌曲列表，仅使用默认歌曲')
     }
@@ -325,12 +300,10 @@ const loadDefaultTrack = async () => {
       return
     }
     
-    // 查找默认歌曲在列表中的位置
     const defaultIndex = trackList.value.indexOf(DEFAULT_TRACK)
     if (defaultIndex >= 0) {
       currentTrackIndex.value = defaultIndex
     } else {
-      // 如果默认歌曲不在列表中，添加到列表并排序
       trackList.value.push(DEFAULT_TRACK)
       trackList.value.sort()
       currentTrackIndex.value = trackList.value.indexOf(DEFAULT_TRACK)
@@ -338,17 +311,13 @@ const loadDefaultTrack = async () => {
     
     const fullPath = MUSIC_FOLDER + DEFAULT_TRACK
     console.log('默认歌曲已加载:', fullPath, '索引:', currentTrackIndex.value, '列表长度:', trackList.value.length)
-    // 只设置音频源，不自动播放（等用户点击播放按钮）
     audioCtx.src = fullPath
     currentTrackName.value = DEFAULT_TRACK
   } catch (error) {
     console.error('加载默认歌曲失败:', error)
-    // 即使加载失败也不影响应用运行
     currentTrackName.value = ''
   }
 }
-
-// 计算是否可以控制切歌
 const canControlTrack = computed(() => {
   return trackList.value.length > 0 && currentTrackIndex.value >= 0
 })
@@ -358,7 +327,6 @@ onUnmounted(() => {
   stopMusicPlayTimer()
 })
 
-// 初始化蓝牙
 const initBluetooth = async () => {
   try {
     await new Promise((resolve, reject) => {
@@ -380,7 +348,6 @@ const initBluetooth = async () => {
 
 
 
-// 扫描设备
 const scanDevices = async () => {
   if (scanning.value) return
   
@@ -389,14 +356,13 @@ const scanDevices = async () => {
   discoveredDevices.value = []
   
   try {
-    // 确保蓝牙适配器已打开（多次调用 openBluetoothAdapter 是安全的）
     try {
       await new Promise((resolve, reject) => {
         uni.openBluetoothAdapter({
           success: resolve,
           fail: (err) => {
             console.error('重新打开蓝牙适配器失败', err)
-            resolve() // 忽略错误，交由后续扫描报错提示
+            resolve()
           }
         })
       })
@@ -410,7 +376,6 @@ const scanDevices = async () => {
       })
     })
     
-    // 监听发现设备
     uni.onBluetoothDeviceFound((devices) => {
       const list = devices.devices || []
       list.forEach(d => {
@@ -422,7 +387,6 @@ const scanDevices = async () => {
       })
     })
     
-    // 6秒后停止扫描并选择设备
     scanStopTimer && clearTimeout(scanStopTimer)
     scanStopTimer = setTimeout(() => {
       try { uni.stopBluetoothDevicesDiscovery() } catch (e) {}
@@ -452,7 +416,6 @@ const scanDevices = async () => {
   }
 }
 
-// 连接设备
 const connectToDevice = async (device) => {
   try {
     addLog('系统', `尝试连接: ${device.name}`, 'system')
@@ -470,10 +433,8 @@ const connectToDevice = async (device) => {
     isConnected.value = true
     connectedDeviceName.value = device.name
     
-    // 保存连接的设备信息
     saveConnectedDevice(device)
     
-    // 获取服务
     const servicesRes = await new Promise((resolve, reject) => {
       uni.getBLEDeviceServices({
         deviceId: device.deviceId,
@@ -545,7 +506,6 @@ const connectToDevice = async (device) => {
   }
 }
 
-// 断开连接
 const disconnect = async () => {
   if (bluetoothDevice) {
     try {
@@ -567,9 +527,7 @@ const disconnect = async () => {
   writeCharId = null
   notifyServiceId = null
   notifyCharId = null
-  // 清空步数历史记录
   stepHistory.value = []
-  // 重置步频数据
   sensorData.cadence = null
   addLog('系统', '设备已断开', 'system')
   uni.showToast({
@@ -579,43 +537,28 @@ const disconnect = async () => {
 }
 
 
-// 处理接收到的数据（已修复分包粘包问题）
 const handleReceivedData = (data) => {
   if (!data) return
   
-  // 1. 将新收到的数据拼接到缓冲区
   receiveBuffer += String(data)
   
-  // 2. 检查缓冲区是否存在换行符（假设设备以 \n 或 \r\n 结尾）
   let newlineIndex = receiveBuffer.indexOf('\n')
   
-  // 3. 循环处理所有完整的行
   while (newlineIndex !== -1) {
-    // 截取完整的一行
     let line = receiveBuffer.substring(0, newlineIndex).trim()
-    
-    // 从缓冲区移除已处理的行（包括换行符）
     receiveBuffer = receiveBuffer.substring(newlineIndex + 1)
     
-    // 如果行不为空，进行解析
     if (line) {
-      // 在这里打印日志，这样看到的就是完整的 "heartRate:56" 而不是碎皮
       addLog(line, 'received') 
       parseDeviceLine(line)
     }
     
-    // 继续查找下一行（防止一次收到多条指令粘连）
     newlineIndex = receiveBuffer.indexOf('\n')
   }
 }
 
-// 解析完整的一行数据
 const parseDeviceLine = (line) => {
-  // --- 1. 音乐控制指令区域 ---
-  
-  // 播放指令
   if (line.startsWith('MUSIC:PLAY')) {
-    // 只有当前是暂停状态才执行播放，防止重复触发
     if (!isPlaying.value) {
       console.log('收到远程指令: 播放')
       togglePlayPause()
@@ -623,9 +566,7 @@ const parseDeviceLine = (line) => {
     return
   }
 
-  // 暂停指令
   if (line.startsWith('MUSIC:PAUSE')) {
-    // 只有当前是播放状态才执行暂停
     if (isPlaying.value) {
       console.log('收到远程指令: 暂停')
       togglePlayPause()
@@ -633,9 +574,18 @@ const parseDeviceLine = (line) => {
     return
   }
 
-  // --- 2. 传感器数据解析区域 (更严格的格式匹配) ---
+  if (line.startsWith('MUSIC:PREV')) {
+    console.log('收到远程指令: 上一首')
+    playPrevTrack()
+    return
+  }
 
-  // 心率 - 只匹配完整的 heartRate: 格式
+  if (line.startsWith('MUSIC:NEXT')) {
+    console.log('收到远程指令: 下一首')
+    playNextTrack()
+    return
+  }
+
   if (line.trim().toLowerCase().startsWith('heartrate:')) {
     const parts = line.split(':', 2)
     if (parts.length === 2) {
@@ -643,13 +593,11 @@ const parseDeviceLine = (line) => {
       const hr = parseInt(hrStr, 10)
       if (!isNaN(hr)) {
         sensorData.heartRate = hr
-        // 心率数据只用于上传，不再用于自动切换音乐
       }
     }
     return
   }
 
-  // 时间 - 只匹配完整的 time: 格式，排除 tempetime:
   if (line.trim().toLowerCase().startsWith('time:')) {
     const parts = line.split(':', 2)
     if (parts.length === 2) {
@@ -661,7 +609,6 @@ const parseDeviceLine = (line) => {
     return
   }
 
-  // 血氧 - 更严格地匹配 SPO2: 格式
   if (line.trim().toUpperCase().startsWith('SPO2:')) {
     const parts = line.split(':', 2)
     if (parts.length === 2) {
@@ -674,9 +621,7 @@ const parseDeviceLine = (line) => {
     return
   }
 
-  // 步数 - 更严格地匹配，排除错误格式
-  if (line.trim().toUpperCase().startsWith('STEPS:')) {
-    // 检查是否有多个冒号或格式错误
+  if (line.trim().toUpperCase().startsWith('STEPSSTEPS:')) {
     const colonCount = (line.match(/:/g) || []).length
     if (colonCount === 1) {
       const parts = line.split(':', 2)
@@ -684,8 +629,7 @@ const parseDeviceLine = (line) => {
         const stepsStr = parts[1].trim()
         const newSteps = parseInt(stepsStr, 10)
         if (!isNaN(newSteps)) {
-          sensorData.steps = newSteps
-          // 更新步数历史记录并计算步频
+          sensorData.stepssteps = newSteps
           updateStepHistory(newSteps)
         }
       }
@@ -693,7 +637,6 @@ const parseDeviceLine = (line) => {
     return
   }
 
-  // 温度 - 更严格地匹配 temperature: 格式，排除 heartRaterature:
   if (line.trim().toLowerCase().startsWith('temperature:')) {
     const parts = line.split(':', 2)
     if (parts.length === 2) {
@@ -706,7 +649,7 @@ const parseDeviceLine = (line) => {
     return
   }
 }
-// 添加日志
+
 const addLog = (content, type = 'received') => {
   const now = new Date()
   const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
@@ -717,67 +660,53 @@ const addLog = (content, type = 'received') => {
     time
   })
   
-  // 限制日志数量
   if (dataList.value.length > 100) {
     dataList.value = dataList.value.slice(0, 100)
   }
 }
 
-// 电池监控
 const startBatteryMonitoring = () => {
-  // 模拟电池电量变化
   setInterval(() => {
     batteryLevel.value = Math.max(10, batteryLevel.value - 0.1)
   }, 60000)
 }
 
-// 更新步数历史记录并计算步频
-const updateStepHistory = (steps) => {
+const updateStepHistory = (stepssteps) => {
   const now = Date.now()
   
-  // 添加新的步数记录
-  stepHistory.value.push({ timestamp: now, steps })
+  stepHistory.value.push({ timestamp: now, stepssteps })
   
-  // 移除超过5秒时间窗口的记录
   const cutoffTime = now - CADENCE_TIME_WINDOW
   stepHistory.value = stepHistory.value.filter(item => item.timestamp >= cutoffTime)
   
-  // 计算步频
   calculateCadence()
 }
 
-// 计算步频（步/分钟）
 const calculateCadence = () => {
   if (stepHistory.value.length < 2) {
-    // 数据不足，无法计算步频
     return
   }
   
   const firstRecord = stepHistory.value[0]
   const lastRecord = stepHistory.value[stepHistory.value.length - 1]
-  const timeDiff = lastRecord.timestamp - firstRecord.timestamp // 毫秒
-  const stepDiff = lastRecord.steps - firstRecord.steps
+  const timeDiff = lastRecord.timestamp - firstRecord.timestamp
+  const stepDiff = lastRecord.stepssteps - firstRecord.stepssteps
   
   if (timeDiff <= 0 || stepDiff <= 0) {
-    // 时间差或步数差无效
     return
   }
   
-  // 计算步频：(步数差 / 时间差) * 60000毫秒 = 步/分钟
-  // 或简化为：(步数差 * 60) / (时间差 / 1000) = 步/分钟
   const cadence = Math.round((stepDiff * 60000) / timeDiff)
   sensorData.cadence = cadence
   
-  // 打印步频信息（调试用）
   console.log(`步频计算：${stepDiff}步 / ${timeDiff/1000}秒 = ${cadence}步/分钟`)
 }
 
-// 上传当前状态信息到服务器
 const uploadCurrentStatus = async () => {
   const statusData = {
     heartRate: sensorData.heartRate || '--',
     spo2: sensorData.spo2 || '--',
-    steps: sensorData.steps || '--',
+    steps: sensorData.stepssteps || '--',
     cadence: sensorData.cadence || '--',
     temperature: sensorData.temperature || '--',
     currentTrackName: currentTrackName.value || '未选择',
@@ -786,38 +715,29 @@ const uploadCurrentStatus = async () => {
     isLiked: isLiked.value ? '是' : '否'
   }
   
-  // 打印到控制台
   console.log('========== 用户状态信息 ==========')
   console.log(formatDataForLog(statusData))
   console.log('================================')
   
-  // 上传到服务器，并接收推荐的歌曲
   try {
     const response = await uploadStatusInfo(statusData)
     console.log('状态信息上传成功，服务器响应:', response)
     
-    // 处理服务器返回的推荐歌曲
     handleServerRecommendedSong(response)
   } catch (error) {
     console.error('状态信息上传失败:', error)
   }
 }
 
-// 处理服务器推荐的歌曲
 const handleServerRecommendedSong = (response) => {
-  // 服务器可能返回的格式：
-  // 1. 直接是字符串: "010377.mp3"
-  // 2. 对象: {recommendedSong: "010377.mp3"} 或 {song: "010377.mp3"}
   let recommendedSong = null
   
   if (typeof response === 'string') {
-    // 检查是否是歌曲文件名格式（六个数字.mp3或其他.mp3格式）
     const trimmed = response.trim()
     if (/\.mp3$/i.test(trimmed)) {
       recommendedSong = trimmed
     }
   } else if (typeof response === 'object' && response !== null) {
-    // 尝试从对象中提取歌曲名
     recommendedSong = response.recommendedSong || response.song || response.trackName || response.file
     if (recommendedSong && typeof recommendedSong === 'string') {
       recommendedSong = recommendedSong.trim()
@@ -829,25 +749,19 @@ const handleServerRecommendedSong = (response) => {
     }
   }
   
-  // 如果有推荐的歌曲且与当前歌曲不同，则在完整列表中找到并播放
   if (recommendedSong && recommendedSong !== currentTrackName.value) {
     console.log('收到服务器推荐的歌曲:', recommendedSong)
     
-    // 在完整歌曲列表中查找推荐歌曲
     const songIndex = trackList.value.indexOf(recommendedSong)
     if (songIndex >= 0) {
-      // 歌曲在列表中，直接使用索引播放
       currentTrackIndex.value = songIndex
-      playTrack(recommendedSong, false) // false 表示不更新索引（已经手动更新了）
+      playTrack(recommendedSong, false)
     } else {
-      // 歌曲不在列表中，但应该播放（可能是新歌曲，但列表应该已经包含了）
-      // 直接播放，playTrack 函数会处理
       playTrack(recommendedSong, true)
     }
   }
 }
 
-// 工具函数
 const str2ab = (str) => {
   if (typeof TextEncoder !== 'undefined') {
     return new TextEncoder().encode(str).buffer
@@ -871,10 +785,7 @@ const ab2str = (buffer) => {
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
-// 心率更新（保留用于显示，但不再用于音乐切换）
 const onHeartRateUpdate = (hr) => {
-  // 心率数据只用于显示，不再用于自动切换音乐
-  // 音乐切换由服务器推荐控制
 }
 
 const ensureAudioContext = () => {
@@ -909,14 +820,12 @@ const ensureAudioContext = () => {
   }
 }
 
-// 播放指定的歌曲
 const playTrack = async (trackFileName, updateIndex = true) => {
   if (!trackFileName || typeof trackFileName !== 'string') {
     console.error('无效的歌曲文件名:', trackFileName)
     return
   }
   
-  // 如果正在播放其他歌曲，先上传当前状态
   if (currentTrackName.value && currentTrackName.value !== trackFileName) {
     await uploadCurrentStatus()
   }
@@ -928,20 +837,17 @@ const playTrack = async (trackFileName, updateIndex = true) => {
     return
   }
   
-  // 重置播放时间和喜欢状态（如果切换了歌曲）
   if (currentTrackName.value !== trackFileName) {
     stopMusicPlayTimer()
     musicPlayTime.value = 0
     isLiked.value = false
   }
   
-  // 如果歌曲不在列表中，添加到列表（但这种情况不应该发生，因为列表应该已经完整）
   if (updateIndex) {
     const existingIndex = trackList.value.indexOf(trackFileName)
     if (existingIndex >= 0) {
       currentTrackIndex.value = existingIndex
     } else {
-      // 如果歌曲不在列表中，添加并排序（虽然不应该发生）
       trackList.value.push(trackFileName)
       trackList.value.sort()
       currentTrackIndex.value = trackList.value.indexOf(trackFileName)
@@ -949,30 +855,24 @@ const playTrack = async (trackFileName, updateIndex = true) => {
     }
   }
   
-  // 构建完整路径
   const fullPath = MUSIC_FOLDER + trackFileName
   
   console.log('准备播放:', fullPath, '当前索引:', currentTrackIndex.value, '列表长度:', trackList.value.length)
   
   try {
-    // 先暂停当前播放（如果正在播放）
     const wasPlaying = isPlaying.value
     if (wasPlaying) {
       audioCtx.pause()
     }
     
-    // 设置新的音频源
     audioCtx.src = fullPath
     currentTrackName.value = trackFileName
     addLog('系统', `播放：${trackFileName}`, 'system')
     
-    // 如果之前正在播放，则播放新歌曲
     if (wasPlaying) {
-      // 使用 setTimeout 确保音频源已设置
       setTimeout(() => {
         try {
           const playResult = audioCtx.play()
-          // play() 可能返回 Promise 也可能不返回，需要检查
           if (playResult && typeof playResult.catch === 'function') {
             playResult.catch(err => {
               console.error('播放失败:', err)
@@ -996,7 +896,6 @@ const playTrack = async (trackFileName, updateIndex = true) => {
   }
 }
 
-// 播放上一首
 const playPrevTrack = async () => {
   if (trackList.value.length === 0) {
     console.warn('歌曲列表为空，无法切歌')
@@ -1012,11 +911,9 @@ const playPrevTrack = async () => {
   const prevTrack = trackList.value[prevIndex]
   console.log(`切歌到上一首: ${prevTrack} (索引: ${prevIndex}/${trackList.value.length - 1})`)
   
-  // 记录之前是否在播放
   const wasPlaying = isPlaying.value
-  await playTrack(prevTrack, false) // false 表示不更新索引（已经手动更新了）
+  await playTrack(prevTrack, false)
   
-  // 如果之前正在播放，确保新歌曲也开始播放
   if (wasPlaying && audioCtx) {
     setTimeout(() => {
       try {
@@ -1033,7 +930,6 @@ const playPrevTrack = async () => {
   }
 }
 
-// 播放下一首
 const playNextTrack = async () => {
   if (trackList.value.length === 0) {
     console.warn('歌曲列表为空，无法切歌')
@@ -1049,11 +945,9 @@ const playNextTrack = async () => {
   const nextTrack = trackList.value[nextIndex]
   console.log(`切歌到下一首: ${nextTrack} (索引: ${nextIndex}/${trackList.value.length - 1})`)
   
-  // 记录之前是否在播放
   const wasPlaying = isPlaying.value
-  await playTrack(nextTrack, false) // false 表示不更新索引（已经手动更新了）
+  await playTrack(nextTrack, false)
   
-  // 如果之前正在播放，确保新歌曲也开始播放
   if (wasPlaying && audioCtx) {
     setTimeout(() => {
       try {
@@ -1070,7 +964,6 @@ const playNextTrack = async () => {
   }
 }
 
-// 开始音乐播放时间计时
 const startMusicPlayTimer = () => {
   stopMusicPlayTimer()
   musicStartTime = Date.now()
@@ -1081,7 +974,6 @@ const startMusicPlayTimer = () => {
   }, 1000)
 }
 
-// 停止音乐播放时间计时
 const stopMusicPlayTimer = () => {
   if (musicPlayTimer) {
     clearInterval(musicPlayTimer)
@@ -1090,20 +982,15 @@ const stopMusicPlayTimer = () => {
   musicStartTime = null
 }
 
-// 切换喜欢状态
 const toggleLike = async () => {
   if (!currentTrackName.value) return
   isLiked.value = !isLiked.value
-  // 喜欢/取消喜欢时上传状态信息
   await uploadCurrentStatus()
 }
 
-// 播放/暂停
 const togglePlayPause = async () => {
   if (!currentTrackName.value) {
-    // 如果没有当前歌曲，播放默认歌曲
     await playTrack(DEFAULT_TRACK)
-    // 播放默认歌曲后，需要手动触发播放
     setTimeout(() => {
       if (audioCtx) {
         try {
@@ -1131,7 +1018,6 @@ const togglePlayPause = async () => {
   if (isPlaying.value) {
     audioCtx.pause()
   } else {
-    // 确保音频源已设置
     if (!audioCtx.src) {
       const fullPath = MUSIC_FOLDER + currentTrackName.value
       audioCtx.src = fullPath

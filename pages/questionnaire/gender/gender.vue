@@ -67,12 +67,10 @@ const handleNext = () => {
     return
   }
   
-  // 保存性别数据
   updateUserProfile({
     gender: selectedGender.value
   })
   
-  // 跳转到下一个问卷页面
   uni.redirectTo({
     url: '/pages/questionnaire/body/body'
   })

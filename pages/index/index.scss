@@ -7,7 +7,6 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-// 顶部区域
 .top-section {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 25rpx;
@@ -112,7 +111,6 @@
   }
 }
 
-// 中间区域
 .middle-section {
   flex: 1;
   display: flex;
@@ -257,7 +255,6 @@
       }
     }
     
-    // 音乐面板样式
     .music-panel {
       margin-top: 30rpx;
       padding-top: 30rpx;
@@ -407,7 +404,6 @@
   }
 }
 
-// 响应式设计
 @media (max-width: 750px) {
   .watch-container {
     padding: 20rpx;
@@ -421,7 +417,6 @@
   }
 }
 
-// 动画
 @keyframes heartBeat {
   0% {
     transform: scale(1);

@@ -78,20 +78,16 @@ const handleComplete = async () => {
     return
   }
   
-  // 保存音乐流派数据
   updateUserProfile({
     musicGenres: selectedGenres.value
   })
   
-  // 获取完整的用户资料
   const userProfile = getUserProfile()
   
-  // 打印用户信息到控制台
   console.log('========== 用户问卷信息 ==========')
   console.log(formatDataForLog(userProfile))
   console.log('================================')
   
-  // 上传用户信息到服务器
   try {
     await uploadInitialInfo(userProfile)
     console.log('用户信息上传成功')
@@ -99,17 +95,14 @@ const handleComplete = async () => {
     console.error('用户信息上传失败:', error)
   }
   
-  // 标记问卷已完成
   markQuestionnaireCompleted()
   
-  // 显示完成提示
   uni.showToast({
     title: '问卷完成！',
     icon: 'success',
     duration: 1500
   })
   
-  // 延迟跳转到主页面
   setTimeout(() => {
     uni.reLaunch({
       url: '/pages/index/index'

@@ -68,12 +68,10 @@ const handleNext = () => {
     return
   }
   
-  // 保存年龄数据
   updateUserProfile({
     age: parseInt(age.value)
   })
   
-  // 跳转到下一个问卷页面
   uni.redirectTo({
     url: '/pages/questionnaire/gender/gender'
   })
